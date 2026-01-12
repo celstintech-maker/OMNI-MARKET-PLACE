@@ -1,0 +1,8 @@
+{
+  "name": "Omni Marketplace",
+  "description": "A multi-vendor marketplace platform where sellers can manage stores, users can browse aggregated products, and super admins can oversee the entire ecosystem.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
