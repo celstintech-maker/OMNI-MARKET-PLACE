@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { User, Store, Product, Transaction, UserRole } from '../types';
 import { COUNTRY_CURRENCY_MAP } from '../constants';
 import { SiteConfig } from '../App';
 
 interface AdminDashboardProps {
-  vendors: User[]; // This actually contains all users in the system passed from App.tsx
+  vendors: User[]; 
   stores: Store[];
   products: Product[];
   transactions: Transaction[];
@@ -117,7 +116,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Editing User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <form onSubmit={saveUserEdits} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-10 shadow-2xl space-y-6 relative">

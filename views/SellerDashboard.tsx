@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, User, SellerVerification, BankDetails, Message, UserRole } from '../types';
 import { Icons, CATEGORIES, COUNTRY_CURRENCY_MAP, PAYMENT_METHODS, NIGERIA_LOCATIONS, MOCK_STORES } from '../constants';
@@ -174,7 +173,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               </div>
            </div>
 
-           {/* Unique Store Link Card */}
            <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2rem] border dark:border-slate-800 shadow-sm">
               <h4 className="text-[10px] font-black uppercase mb-6 tracking-widest text-gray-400">Public Store Address</h4>
               <div className="flex flex-col sm:flex-row items-center gap-4 p-5 bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800">
@@ -191,7 +189,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               </div>
            </div>
 
-           {/* Settlement Protocol Card */}
            <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2rem] border dark:border-slate-800 shadow-sm">
               <h4 className="text-[10px] font-black uppercase mb-6 tracking-widest text-gray-400">Settlement Protocol</h4>
               <div className="flex flex-col sm:flex-row items-center gap-4 p-5 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border dark:border-slate-800">
@@ -213,7 +210,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
       {activeTab === 'inventory' && (
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border dark:border-slate-800 overflow-hidden shadow-sm">
-          {/* Mobile Inventory View */}
           <div className="block lg:hidden divide-y dark:divide-slate-800">
             {sellerProducts.map(p => (
               <div key={p.id} className="p-6 space-y-3">
@@ -230,7 +226,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             {sellerProducts.length === 0 && <div className="py-20 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest">Inventory Null</div>}
           </div>
 
-          {/* Desktop Inventory Table */}
           <table className="hidden lg:table min-w-full divide-y dark:divide-slate-800 font-bold">
             <thead className="bg-gray-50 dark:bg-slate-800">
               <tr>
@@ -264,7 +259,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Payment Configuration Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] p-8 shadow-2xl space-y-8 relative">
