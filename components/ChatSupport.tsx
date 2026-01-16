@@ -1,9 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Message, UserRole, Store } from '../types';
 import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface ChatSupportProps {
   currentUser: User | null;
@@ -80,9 +77,15 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   const messages = selectedChannel ? (globalMessages[selectedChannel] || []) : [];
 
   const handleAIService = async (userMessage: string, channelId: string) => {
-    if (!process.env.API_KEY) return;
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.warn("AI Support unavailable: API Key missing.");
+      return;
+    }
+
     setIsThinking(true);
     try {
+      const ai = new GoogleGenAI({ apiKey });
       const isSystemSupport = channelId === 'system';
       
       const systemPrompt = isSystemSupport 
