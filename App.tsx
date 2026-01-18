@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Product, Store, UserRole, Transaction, CartItem, Message } from './types';
 import { MOCK_PRODUCTS, MOCK_STORES, COUNTRY_CURRENCY_MAP, Icons, PAYMENT_METHODS } from './constants';
@@ -9,22 +10,29 @@ import { StorePage } from './views/StorePage';
 import { AuthView } from './views/AuthView';
 import { ChatSupport } from './components/ChatSupport';
 import { WishlistView } from './views/WishlistView';
+import { BuyerDashboard } from './views/BuyerDashboard';
 
-type View = 'home' | 'seller-dashboard' | 'admin-dashboard' | 'store-page' | 'auth' | 'wishlist';
+type View = 'home' | 'seller-dashboard' | 'admin-dashboard' | 'store-page' | 'auth' | 'wishlist' | 'buyer-dashboard';
 type Theme = 'light' | 'dark';
 
 export interface SiteConfig {
+  siteName: string;
+  logoUrl: string;
+  faviconUrl: string;
   heroTitle: string;
   heroSubtitle: string;
   heroBackgroundUrl: string;
   commissionRate: number;
   announcement: string;
+  footerText: string;
+  contactEmail: string;
+  contactPhone: string;
+  officeAddress: string;
 }
 
 const PIN_STORAGE_KEY = 'omni_pins_secure';
 const ATTEMPT_STORAGE_KEY = 'omni_auth_attempts';
 
-// Security Utility: Sanitize inputs to prevent XSS
 const sanitizeInput = (str: string) => str.replace(/[<>]/g, '').trim();
 
 const App: React.FC = () => {
@@ -50,11 +58,18 @@ const App: React.FC = () => {
   const [authLockout, setAuthLockout] = useState<number>(0);
   
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({
+    siteName: "OMNI",
+    logoUrl: "",
+    faviconUrl: "",
     heroTitle: "OMNI MARKETPLACE",
     heroSubtitle: "Hyper-curated selections from independent global verified vendors.",
     heroBackgroundUrl: "",
     commissionRate: 0.10,
-    announcement: "WELCOME TO THE FUTURE OF GLOBAL COMMERCE. VERIFIED VENDORS ONLY."
+    announcement: "WELCOME TO THE FUTURE OF GLOBAL COMMERCE. VERIFIED VENDORS ONLY.",
+    footerText: "Verified global sourcing hub for independent multi-vendor commerce. Advanced supply chain integration.",
+    contactEmail: "support@omni.link",
+    contactPhone: "+234 800 OMNI HELP",
+    officeAddress: "Silicon Valley Hub, Digital Way"
   });
 
   const [vendors, setVendors] = useState<User[]>([
@@ -93,7 +108,7 @@ const App: React.FC = () => {
   const [storedPins, setStoredPins] = useState<Record<string, string>>(() => {
     try {
       const saved = localStorage.getItem(PIN_STORAGE_KEY);
-      return saved ? JSON.parse(atob(saved)) : { // Base64 "obfuscation" for local storage
+      return saved ? JSON.parse(atob(saved)) : {
         'admin@omni.com': '6561',
         'alex@tech.com': '0000',
         'seller@tech.com': '0000'
@@ -127,6 +142,18 @@ const App: React.FC = () => {
   }, [storedPins]);
 
   useEffect(() => {
+    if (siteConfig.faviconUrl) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = siteConfig.faviconUrl;
+    }
+  }, [siteConfig.faviconUrl]);
+
+  useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (hash.startsWith('#/store/')) {
@@ -140,7 +167,6 @@ const App: React.FC = () => {
         setCurrentView('home');
       }
     };
-
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange(); 
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -153,8 +179,7 @@ const App: React.FC = () => {
     } else if (checkoutStatus === 'verifying' && countdown === 0) {
       setCheckoutStatus('success');
       setTimeout(() => {
-        setCart([]);
-        setIsCheckout(false);
+        finalizeTransaction();
         setCheckoutStatus('idle');
         setIsCartOpen(false);
         if (selectedStore) {
@@ -196,8 +221,8 @@ const App: React.FC = () => {
       }
     }
     localStorage.setItem(ATTEMPT_STORAGE_KEY, '0');
-    const existingVendor = vendors.find(v => v.email === sanitizedEmail);
-    const newUser: User = existingVendor || { 
+    const existingUser = vendors.find(v => v.email === sanitizedEmail);
+    const newUser: User = existingUser || { 
       id: Math.random().toString(36).substring(7), 
       name: sanitizeInput(sanitizedEmail.split('@')[0]), 
       email: sanitizedEmail, 
@@ -206,27 +231,20 @@ const App: React.FC = () => {
       country: 'Nigeria', 
       isSuspended: false, 
       paymentMethod: 'bank_transfer',
-      passwordHint: hint ? sanitizeInput(hint) : undefined,
-      verification: role === UserRole.SELLER ? {
-        businessName: storeName ? sanitizeInput(storeName) : '',
-        businessAddress: 'Pending Submission',
-        country: 'Nigeria',
-        phoneNumber: 'Not set',
-        profilePictureUrl: 'https://picsum.photos/200/200?random=auth',
-        verificationStatus: 'pending',
-        productSamples: []
-      } : undefined
+      passwordHint: hint ? sanitizeInput(hint) : undefined
     };
-    if (role === UserRole.SELLER && !existingVendor) {
+    if (!existingUser) {
       setVendors(prev => [...prev, newUser]);
-      setStores(prev => [...prev, {
-        id: `st-${newUser.id}`,
-        sellerId: newUser.id,
-        name: newUser.storeName || 'Unnamed Store',
-        description: 'Store awaiting activation.',
-        bannerUrl: 'https://picsum.photos/1200/400?random=new',
-        status: 'suspended'
-      }]);
+      if (role === UserRole.SELLER) {
+        setStores(prev => [...prev, {
+          id: `st-${newUser.id}`,
+          sellerId: newUser.id,
+          name: newUser.storeName || 'Unnamed Store',
+          description: 'Store awaiting activation.',
+          bannerUrl: 'https://picsum.photos/1200/400?random=new',
+          status: 'suspended'
+        }]);
+      }
     }
     if (!storedPins[sanitizedEmail]) {
       setStoredPins(prev => ({ ...prev, [sanitizedEmail]: sanitizedPin }));
@@ -234,6 +252,7 @@ const App: React.FC = () => {
     setCurrentUser(newUser);
     if (role === UserRole.SELLER) setCurrentView('seller-dashboard');
     else if (role === UserRole.ADMIN) setCurrentView('admin-dashboard');
+    else if (role === UserRole.BUYER) setCurrentView('buyer-dashboard');
     else setCurrentView('home');
   };
 
@@ -271,6 +290,7 @@ const App: React.FC = () => {
       setCheckoutStatus('pending_bank');
     } else {
       finalizeTransaction();
+      setIsCartOpen(false);
     }
   };
 
@@ -290,8 +310,7 @@ const App: React.FC = () => {
     setTransactions(prev => [...prev, ...newTransactions]);
     setCart([]);
     setIsCheckout(false);
-    setIsCartOpen(false);
-    alert(`Order Placed Successfully. Delivery via Celstin Logistics. Tracking: https://celstin-logistics-ne.vercel.app/ Notification sent to ${checkoutData.email}`);
+    alert(`Order Placed Successfully. Notification sent to ${checkoutData.email}`);
   };
 
   const handleToggleWishlist = (productId: string) => setWishlist(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
@@ -308,8 +327,6 @@ const App: React.FC = () => {
 
   const cartTotal = cart.reduce((a, b) => a + (b.price * b.quantity), 0);
   const cartCurrency = cart.length > 0 ? cart[0].currencySymbol : '₦';
-
-  // Get first seller's bank details for checkout UI (simplified for demo)
   const activeSeller = cart.length > 0 ? vendors.find(v => v.id === cart[0].sellerId) : null;
 
   return (
@@ -319,15 +336,14 @@ const App: React.FC = () => {
           <div className="bg-indigo-600 text-white py-2 text-[10px] font-black text-center tracking-[0.3em] uppercase">{siteConfig.announcement}</div>
         )}
         <Layout 
-          user={currentUser} onLogout={handleLogout} onNavigate={v => {
-            if (v === 'home') window.location.hash = '#/home';
-            else setCurrentView(v as View);
-          }} currentView={currentView} theme={theme} onToggleTheme={toggleTheme}
+          user={currentUser} onLogout={handleLogout} onNavigate={v => setCurrentView(v as View)} currentView={currentView} theme={theme} onToggleTheme={toggleTheme}
           cartCount={cart.reduce((a, b) => a + b.quantity, 0)} onOpenCart={() => setIsCartOpen(true)}
+          config={siteConfig}
         >
           {currentView === 'home' && <MarketplaceHome config={siteConfig} products={products} stores={stores.filter(s => s.status === 'active')} onNavigateToStore={handleNavigateToStore} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} isLoggedIn={!!currentUser} currentUser={currentUser} onAddToCart={handleAddToCart} onBecomeSeller={() => setCurrentView('auth')} />}
           {currentView === 'store-page' && selectedStore && <StorePage store={selectedStore} products={products} onNavigateToStore={handleNavigateToStore} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} isLoggedIn={!!currentUser} onBuy={(p) => handleAddToCart({...p, quantity: 1})} />}
-          {currentView === 'seller-dashboard' && currentUser && <SellerDashboard user={currentUser} products={products} onAddProduct={p => setProducts([{...p, id: Date.now().toString()} as Product, ...products])} onDeleteProduct={id => setProducts(products.filter(p => p.id !== id))} onUpdateUser={handleUpdateUser} onUpdateProduct={handleUpdateProduct} unreadCount={unreadNotifications.filter(id => id === currentUser.id).length} onClearNotifications={() => setUnreadNotifications([])} />}
+          {currentView === 'seller-dashboard' && currentUser && <SellerDashboard user={currentUser} products={products} onAddProduct={p => setProducts([{...p, id: Date.now().toString()} as Product, ...products])} onDeleteProduct={id => setProducts(products.filter(p => p.id !== id))} onUpdateUser={handleUpdateUser} onUpdateProduct={handleUpdateProduct} />}
+          {currentView === 'buyer-dashboard' && currentUser && <BuyerDashboard user={currentUser} transactions={transactions} />}
           {currentView === 'wishlist' && <WishlistView products={products} wishlist={wishlist} onNavigateToStore={handleNavigateToStore} onToggleWishlist={handleToggleWishlist} />}
           {currentView === 'auth' && <AuthView stores={stores.filter(s => s.status === 'active')} onLogin={handleLogin} />}
           {currentView === 'admin-dashboard' && currentUser?.role === UserRole.ADMIN && <AdminDashboard vendors={vendors} stores={stores} products={products} transactions={transactions} siteConfig={siteConfig} onUpdateConfig={setSiteConfig} onToggleVendorStatus={() => {}} onDeleteVendor={handleDeleteUser} onUpdateUser={handleUpdateUser} />}
@@ -341,7 +357,6 @@ const App: React.FC = () => {
                 <h3 className="text-2xl font-black">{isCheckout ? 'Checkout Details' : 'Shopping Bag'}</h3>
                 <button onClick={() => { setIsCartOpen(false); setIsCheckout(false); setCheckoutStatus('idle'); }}><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
               </div>
-              
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 {!isCheckout ? (
                   <>
@@ -353,10 +368,6 @@ const App: React.FC = () => {
                   <>
                     {checkoutStatus === 'idle' && (
                       <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 mb-6">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Omni Delivery Service</p>
-                          <p className="text-xs font-bold text-gray-600 dark:text-gray-300">All orders delivered via <a href="https://celstin-logistics-ne.vercel.app/" target="_blank" className="underline text-indigo-600">Celstin Logistics</a>.</p>
-                        </div>
                         <div className="space-y-3">
                           <input required placeholder="Full Name" value={checkoutData.name} onChange={e => setCheckoutData({...checkoutData, name: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-gray-50 dark:bg-slate-800 shadow-inner" />
                           <input required type="email" placeholder="Email Address for Notifications" value={checkoutData.email} onChange={e => setCheckoutData({...checkoutData, email: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-gray-50 dark:bg-slate-800 shadow-inner" />
@@ -378,11 +389,10 @@ const App: React.FC = () => {
                         <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl mt-6">Confirm Order ({cartCurrency}{cartTotal.toLocaleString()})</button>
                       </form>
                     )}
-
                     {checkoutStatus === 'pending_bank' && (
                       <div className="space-y-6 animate-fade-in text-center py-6">
-                        <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-3xl border border-amber-200 text-amber-900 dark:text-amber-100">
-                          <h4 className="font-black uppercase text-xs tracking-widest mb-4">Seller Bank Details</h4>
+                        <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-3xl border border-amber-200">
+                          <h4 className="font-black uppercase text-xs tracking-widest mb-4 text-amber-900 dark:text-amber-100">Seller Bank Details</h4>
                           <div className="space-y-2 text-left bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm font-bold">
                             <p className="text-[10px] text-gray-400 uppercase">Bank Name</p>
                             <p>{activeSeller?.bankDetails?.bankName || 'Omni Settlement Bank'}</p>
@@ -392,59 +402,42 @@ const App: React.FC = () => {
                             <p>{activeSeller?.bankDetails?.accountName || activeSeller?.storeName}</p>
                           </div>
                         </div>
-                        <p className="text-xs font-medium text-gray-500">Please transfer exactly {cartCurrency}{cartTotal.toLocaleString()} to the details above.</p>
                         <button onClick={() => { setCountdown(10); setCheckoutStatus('verifying'); }} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl">I Have Made the Transfer</button>
                       </div>
                     )}
-
                     {checkoutStatus === 'verifying' && (
                       <div className="h-full flex flex-col items-center justify-center space-y-6 text-center animate-fade-in">
                         <div className="relative w-24 h-24">
-                          <svg className="w-full h-full animate-spin text-indigo-600" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
+                          <svg className="w-full h-full animate-spin text-indigo-600" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                           <div className="absolute inset-0 flex items-center justify-center font-black text-2xl text-indigo-600">{countdown}</div>
                         </div>
                         <h4 className="font-black uppercase text-sm tracking-widest">Verifying Transfer</h4>
-                        <p className="text-xs text-gray-400">Waiting for {activeSeller?.storeName} to confirm receipt on their dashboard node...</p>
                       </div>
                     )}
-
                     {checkoutStatus === 'success' && (
                       <div className="h-full flex flex-col items-center justify-center space-y-4 text-center animate-fade-in">
-                        <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white shadow-xl shadow-green-200">
+                        <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white shadow-xl">
                           <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                         </div>
                         <h3 className="text-2xl font-black tracking-tighter">Order Confirmed</h3>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Redirecting to store node...</p>
                       </div>
                     )}
                   </>
                 )}
               </div>
-
               {!isCheckout && cart.length > 0 && (
                 <div className="p-8 border-t dark:border-slate-800 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Subtotal</span>
                     <span className="text-2xl font-black text-indigo-600">{cartCurrency}{cartTotal.toLocaleString()}</span>
                   </div>
-                  <button onClick={() => setIsCheckout(true)} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-2xl transition hover:scale-[1.02] active:scale-95">Initiate Checkout Protocol</button>
+                  <button onClick={() => setIsCheckout(true)} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-2xl transition hover:scale-[1.02] active:scale-95">Initiate Checkout</button>
                 </div>
               )}
             </div>
           </div>
         )}
-        
-        <ChatSupport 
-          currentUser={currentUser} 
-          stores={stores.filter(s => s.status === 'active')} 
-          globalMessages={allMessages} 
-          onSendMessage={handleSendMessage} 
-          onClearChat={handleClearChat}
-          theme={theme} 
-        />
+        <ChatSupport currentUser={currentUser} stores={stores.filter(s => s.status === 'active')} globalMessages={allMessages} onSendMessage={handleSendMessage} onClearChat={handleClearChat} theme={theme} />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, Message, UserRole, Store } from '../types';
 import { GoogleGenAI } from "@google/genai";
 
@@ -30,6 +30,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   const [isOpen, setIsOpen] = useState(isEmbedded);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(forcedChannelId || null);
   const [input, setInput] = useState('');
+  const [channelSearchQuery, setChannelSearchQuery] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [queueStatus, setQueueStatus] = useState<{inQueue: boolean, position: number} | null>(null);
   
@@ -75,6 +76,12 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
     : stores.find(s => s.id === selectedChannel)?.name || 'Direct Inquiry';
 
   const messages = selectedChannel ? (globalMessages[selectedChannel] || []) : [];
+
+  const filteredStores = useMemo(() => {
+    return stores.filter(s => s.name.toLowerCase().includes(channelSearchQuery.toLowerCase()));
+  }, [stores, channelSearchQuery]);
+
+  const showSystemSupport = 'Omni Global Support'.toLowerCase().includes(channelSearchQuery.toLowerCase());
 
   const handleAIService = async (userMessage: string, channelId: string) => {
     const apiKey = process.env.API_KEY;
@@ -152,36 +159,63 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   };
 
   const ChannelList = (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50 dark:bg-slate-950 no-scrollbar">
-      <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-6">Available Channels</h4>
-      <button 
-        onClick={() => { setSelectedChannel('system'); updateActivity(); }}
-        className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 border-transparent hover:border-indigo-600 shadow-sm transition-all text-left group"
-      >
-        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+    <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-slate-950">
+      <div className="p-4 border-b dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="relative">
+          <input 
+            type="text"
+            value={channelSearchQuery}
+            onChange={(e) => setChannelSearchQuery(e.target.value)}
+            placeholder="Search channels or stores..."
+            className="w-full bg-gray-100 dark:bg-slate-800 dark:text-white rounded-2xl pl-10 pr-4 py-2.5 text-xs font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all"
+          />
+          <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
-        <div className="flex-1">
-          <p className="font-black text-sm">Omni Global Support</p>
-          <p className="text-[10px] text-indigo-500 uppercase font-black">AI Managed Support</p>
-        </div>
-        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-      </button>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+        {showSystemSupport && (
+          <>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-6">Available Channels</h4>
+            <button 
+              onClick={() => { setSelectedChannel('system'); updateActivity(); }}
+              className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 border-transparent hover:border-indigo-600 shadow-sm transition-all text-left group"
+            >
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-black text-sm">Omni Global Support</p>
+                <p className="text-[10px] text-indigo-500 uppercase font-black">AI Managed Support</p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            </button>
+          </>
+        )}
 
-      {stores.length > 0 && <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mt-8 mb-6">Marketplace Stores</h4>}
-      {stores.map(store => (
-        <button 
-          key={store.id}
-          onClick={() => { setSelectedChannel(store.id); updateActivity(); }}
-          className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 border-transparent hover:border-indigo-600 shadow-sm transition-all text-left group"
-        >
-          <img src={store.bannerUrl} className="w-12 h-12 rounded-2xl object-cover" alt="" />
-          <div>
-            <p className="font-black text-sm">{store.name}</p>
-            <p className="text-[10px] text-gray-400 uppercase font-black">Vendor Node</p>
+        {filteredStores.length > 0 && <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mt-8 mb-6">Marketplace Stores</h4>}
+        {filteredStores.map(store => (
+          <button 
+            key={store.id}
+            onClick={() => { setSelectedChannel(store.id); updateActivity(); }}
+            className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 border-transparent hover:border-indigo-600 shadow-sm transition-all text-left group"
+          >
+            <img src={store.bannerUrl} className="w-12 h-12 rounded-2xl object-cover" alt="" />
+            <div>
+              <p className="font-black text-sm">{store.name}</p>
+              <p className="text-[10px] text-gray-400 uppercase font-black">Vendor Node</p>
+            </div>
+          </button>
+        ))}
+
+        {!showSystemSupport && filteredStores.length === 0 && (
+          <div className="text-center py-20 opacity-40">
+            <p className="text-[10px] font-black uppercase tracking-widest">No nodes found</p>
           </div>
-        </button>
-      ))}
+        )}
+      </div>
     </div>
   );
 
@@ -272,7 +306,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
               disabled={!input.trim() || queueStatus?.inQueue}
               className="bg-indigo-600 text-white p-4 rounded-2xl hover:bg-indigo-700 transition active:scale-90 disabled:opacity-50"
             >
-              <svg className="w-6 h-6 rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+              <svg className="w-6 h-6 rotate-90" fill="currentColor" viewBox="0 0 24 24"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
             </button>
           </form>
         </>

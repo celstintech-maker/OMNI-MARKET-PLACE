@@ -50,7 +50,7 @@ export interface Product {
   category: string;
   imageUrl: string;
   gallery?: string[];
-  sizes?: string[]; // Added for fashion/footwear
+  sizes?: string[];
   videoUrl?: string;
   storeName: string;
   currencySymbol?: string; 
