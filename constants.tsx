@@ -8,7 +8,8 @@ export const PAYMENT_METHODS = [
   { id: 'paystack', name: 'Paystack', icon: '🥞' },
   { id: 'flutterwave', name: 'Flutterwave', icon: '🌊' },
   { id: 'stripe', name: 'Stripe (Credit/Debit)', icon: '💳' },
-  { id: 'paypal', name: 'PayPal', icon: '🅿️' }
+  { id: 'paypal', name: 'PayPal', icon: '🅿️' },
+  { id: 'pod', name: 'Payment on Delivery', icon: '📦' }
 ];
 
 export const NIGERIA_LOCATIONS: Record<string, string[]> = {

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Product, Store, UserRole, Transaction, CartItem, Message } from './types';
-import { MOCK_PRODUCTS, MOCK_STORES, COUNTRY_CURRENCY_MAP, Icons } from './constants';
+import { MOCK_PRODUCTS, MOCK_STORES, COUNTRY_CURRENCY_MAP, Icons, PAYMENT_METHODS } from './constants';
 import { Layout } from './components/Layout';
 import { MarketplaceHome } from './views/MarketplaceHome';
 import { SellerDashboard } from './views/SellerDashboard';
@@ -32,6 +33,15 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckout, setIsCheckout] = useState(false);
+  const [checkoutData, setCheckoutData] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    city: '',
+    paymentMethod: 'pod'
+  });
+  
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allMessages, setAllMessages] = useState<Record<string, Message[]>>({});
   const [unreadNotifications, setUnreadNotifications] = useState<string[]>([]);
@@ -242,6 +252,29 @@ const App: React.FC = () => {
     setIsCartOpen(true);
   };
 
+  const handleCheckoutSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const newTransactions: Transaction[] = cart.map(item => ({
+      id: `tr-${Math.random().toString(36).substr(2, 9)}`,
+      productId: item.id,
+      productName: item.name,
+      sellerId: item.sellerId,
+      storeName: item.storeName,
+      amount: item.price * item.quantity,
+      commission: (item.price * item.quantity) * siteConfig.commissionRate,
+      timestamp: Date.now(),
+      currencySymbol: item.currencySymbol || '₦',
+      paymentMethod: checkoutData.paymentMethod
+    }));
+
+    setTransactions(prev => [...prev, ...newTransactions]);
+    setCart([]);
+    setIsCheckout(false);
+    setIsCartOpen(false);
+    alert(`Order Placed Successfully via ${PAYMENT_METHODS.find(m => m.id === checkoutData.paymentMethod)?.name || 'Direct Transfer'}.\nDelivery will be handled by Celstin Logistics.\nTracking: https://celstin-logistics-ne.vercel.app/`);
+  };
+
   const handleToggleWishlist = (productId: string) => setWishlist(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
   const handleNavigateToStore = (storeName: string) => window.location.hash = `#/store/${encodeURIComponent(storeName)}`;
   const handleSendMessage = (channelId: string, message: Message) => setAllMessages(prev => ({ ...prev, [channelId]: [...(prev[channelId] || []), message] }));
@@ -253,6 +286,9 @@ const App: React.FC = () => {
     setProducts(prev => prev.filter(p => p.sellerId !== userId));
     if (currentUser?.id === userId) handleLogout();
   };
+
+  const cartTotal = cart.reduce((a, b) => a + (b.price * b.quantity), 0);
+  const cartCurrency = cart.length > 0 ? cart[0].currencySymbol : '₦';
 
   return (
     <div className={theme}>
@@ -277,14 +313,66 @@ const App: React.FC = () => {
 
         {isCartOpen && (
           <div className="fixed inset-0 z-[200] flex justify-end">
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
-            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-slide-up">
-              <div className="p-8 border-b dark:border-slate-800 flex justify-between items-center"><h3 className="text-2xl font-black">Shopping Bag</h3><button onClick={() => setIsCartOpen(false)}><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
-              <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                {cart.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-center text-gray-400"><Icons.Store /><p className="mt-4 font-black uppercase text-xs tracking-widest">Your bag is empty</p></div> : cart.map(item => (
-                  <div key={`${item.id}-${item.selectedSize}`} className="flex gap-4 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-[1.5rem] border dark:border-slate-800 font-bold"><img src={item.selectedImageUrl || item.imageUrl} className="w-20 h-20 rounded-xl object-cover" /><div className="flex-1"><h4>{item.name}</h4><p className="text-[10px] text-gray-400 font-bold">Size: {item.selectedSize || 'N/A'}</p><div className="flex justify-between items-center mt-2"><span className="text-indigo-600">{item.currencySymbol}{item.price.toLocaleString()}</span></div></div></div>
-                ))}
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => { setIsCartOpen(false); setIsCheckout(false); }} />
+            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-slide-up overflow-hidden">
+              <div className="p-8 border-b dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-2xl font-black">{isCheckout ? 'Checkout Details' : 'Shopping Bag'}</h3>
+                <button onClick={() => { setIsCartOpen(false); setIsCheckout(false); }}><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
               </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                {!isCheckout ? (
+                  <>
+                    {cart.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-center text-gray-400"><Icons.Store /><p className="mt-4 font-black uppercase text-xs tracking-widest">Your bag is empty</p></div> : cart.map(item => (
+                      <div key={`${item.id}-${item.selectedSize}`} className="flex gap-4 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-[1.5rem] border dark:border-slate-800 font-bold"><img src={item.selectedImageUrl || item.imageUrl} className="w-20 h-20 rounded-xl object-cover" /><div className="flex-1"><h4>{item.name}</h4><p className="text-[10px] text-gray-400 font-bold">Size: {item.selectedSize || 'N/A'}</p><div className="flex justify-between items-center mt-2"><span className="text-indigo-600">{item.currencySymbol}{item.price.toLocaleString()} x {item.quantity}</span></div></div></div>
+                    ))}
+                  </>
+                ) : (
+                  <form onSubmit={handleCheckoutSubmit} className="space-y-4">
+                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 mb-6">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Omni Delivery Service</p>
+                       <p className="text-xs font-bold text-gray-600 dark:text-gray-300">All orders are delivered via <a href="https://celstin-logistics-ne.vercel.app/" target="_blank" className="underline text-indigo-600">Celstin Logistics</a>. Providing real-time tracking across major regions.</p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <input required placeholder="Full Name" value={checkoutData.name} onChange={e => setCheckoutData({...checkoutData, name: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-gray-50 dark:bg-slate-800 shadow-inner" />
+                      <input required placeholder="Phone Number" value={checkoutData.phone} onChange={e => setCheckoutData({...checkoutData, phone: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-gray-50 dark:bg-slate-800 shadow-inner" />
+                      <input required placeholder="City / Region" value={checkoutData.city} onChange={e => setCheckoutData({...checkoutData, city: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-gray-50 dark:bg-slate-800 shadow-inner" />
+                      <textarea required placeholder="Full Delivery Address" value={checkoutData.address} onChange={e => setCheckoutData({...checkoutData, address: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none h-24 text-sm font-medium bg-gray-50 dark:bg-slate-800 shadow-inner" />
+                    </div>
+
+                    <div className="space-y-3 pt-4">
+                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Payment Method</label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {PAYMENT_METHODS.filter(m => m.id === 'pod' || m.id === 'bank_transfer' || m.id === 'stripe').map(m => (
+                          <button 
+                            key={m.id}
+                            type="button"
+                            onClick={() => setCheckoutData({...checkoutData, paymentMethod: m.id})}
+                            className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${checkoutData.paymentMethod === m.id ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600' : 'border-gray-100 dark:border-slate-800 text-gray-400 hover:border-indigo-200'}`}
+                          >
+                            <span className="text-xl">{m.icon}</span>
+                            <span className="font-black text-[10px] uppercase tracking-widest">{m.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl mt-6 active:scale-95 transition-transform">Confirm Order ({cartCurrency}{cartTotal.toLocaleString()})</button>
+                    <button type="button" onClick={() => setIsCheckout(false)} className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Back to Bag</button>
+                  </form>
+                )}
+              </div>
+
+              {!isCheckout && cart.length > 0 && (
+                <div className="p-8 border-t dark:border-slate-800 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Subtotal</span>
+                    <span className="text-2xl font-black text-indigo-600">{cartCurrency}{cartTotal.toLocaleString()}</span>
+                  </div>
+                  <button onClick={() => setIsCheckout(true)} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-2xl transition hover:scale-[1.02] active:scale-95">Initiate Checkout Protocol</button>
+                </div>
+              )}
             </div>
           </div>
         )}
