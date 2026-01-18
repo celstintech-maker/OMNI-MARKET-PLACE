@@ -26,7 +26,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.length < 4) {
-      alert("Security Protocol: PIN must be at least 4 digits.");
+      alert("PIN must be at least 4 digits.");
       return;
     }
     onLogin(email, role, pin, role === UserRole.SELLER ? storeName : undefined, hint);
@@ -38,8 +38,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
         <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-indigo-200">
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
         </div>
-        <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{isRegister ? 'Initialize Access' : 'Security Checkpoint'}</h2>
-        <p className="text-gray-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">{isRegister ? 'Join the Omni ecosystem' : 'Enter your credentials'}</p>
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{isRegister ? 'Sign Up' : 'Log In'}</h2>
+        <p className="text-gray-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">{isRegister ? 'Join our marketplace' : 'Enter your details'}</p>
       </div>
       
       <div className="flex bg-gray-100 dark:bg-slate-800 p-1.5 rounded-2xl mb-8">
@@ -47,53 +47,53 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
           onClick={() => setIsRegister(false)}
           className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!isRegister ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-md' : 'text-gray-400'}`}
         >
-          Identify
+          Login
         </button>
         <button 
           onClick={() => setIsRegister(true)}
           className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isRegister ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-md' : 'text-gray-400'}`}
         >
-          Enroll
+          Register
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {isRegister && (
           <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Protocol Assignment</label>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">I am a</label>
             <div className="grid grid-cols-2 gap-3">
               <button 
                 type="button" 
                 onClick={() => setRole(UserRole.BUYER)}
                 className={`p-4 border-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${role === UserRole.BUYER ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600' : 'border-gray-100 dark:border-slate-800 text-gray-400'}`}
               >
-                Procurement
+                Buyer
               </button>
               <button 
                 type="button" 
                 onClick={() => setRole(UserRole.SELLER)}
                 className={`p-4 border-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${role === UserRole.SELLER ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600' : 'border-gray-100 dark:border-slate-800 text-gray-400'}`}
               >
-                Distribution
+                Seller
               </button>
             </div>
           </div>
         )}
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Identifier (Email)</label>
+          <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Email Address</label>
           <input 
             type="email" 
             required 
             className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
-            placeholder="node@omni.link"
+            placeholder="your@email.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
           />
         </div>
 
         <div className="space-y-1 relative">
-          <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Security PIN (4+ Digits)</label>
+          <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">PIN (4+ Digits)</label>
           <div className="relative">
             <input 
               type={showPin ? "text" : "password"} 
@@ -116,11 +116,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
 
         {isRegister && (
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Recovery Hint (Optional)</label>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Security Hint (Optional)</label>
             <input 
               type="text" 
               className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
-              placeholder="e.g. Graduation year"
+              placeholder="e.g. Pet's name"
               value={hint}
               onChange={e => setHint(e.target.value)}
             />
@@ -129,12 +129,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
 
         {isRegister && role === UserRole.SELLER && (
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Store Designation</label>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Store Name</label>
             <input 
               type="text" 
               required 
               className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
-              placeholder="Titan Electronics"
+              placeholder="My Store"
               value={storeName}
               onChange={e => setStoreName(e.target.value)}
             />
@@ -145,31 +145,31 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
           type="submit" 
           className="w-full bg-indigo-600 text-white font-black uppercase text-[10px] tracking-[0.3em] py-5 rounded-2xl mt-4 hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 dark:shadow-none active:scale-95"
         >
-          {isRegister ? 'Finalize Protocol' : 'Authenticate User'}
+          {isRegister ? 'Create Account' : 'Authenticate'}
         </button>
 
         {!isRegister && (
           <div className="text-center pt-2">
-            <button type="button" onClick={() => alert("Contact Root Admin for PIN recovery protocols.")} className="text-[9px] font-black uppercase text-gray-400 hover:text-indigo-600 tracking-widest">Forgotten PIN?</button>
+            <button type="button" onClick={() => alert("Contact support for PIN recovery.")} className="text-[9px] font-black uppercase text-gray-400 hover:text-indigo-600 tracking-widest">Forgotten PIN?</button>
           </div>
         )}
 
         <div className="border-t dark:border-slate-800 pt-6">
-          <p className="text-[8px] text-center text-gray-400 mb-4 uppercase font-black tracking-[0.4em]">Development Bypass</p>
+          <p className="text-[8px] text-center text-gray-400 mb-4 uppercase font-black tracking-[0.4em]">Demo Access</p>
           <div className="flex flex-wrap gap-2 justify-center">
              <button 
                type="button" 
                onClick={() => onLogin('admin@omni.com', UserRole.ADMIN, '6561')} 
                className="text-[9px] px-4 py-2 bg-slate-900 text-white rounded-full font-black border border-transparent transition hover:scale-105"
              >
-               ROOT: 6561
+               ADMIN: 6561
              </button>
              <button 
                type="button" 
                onClick={() => onLogin('seller@tech.com', UserRole.SELLER, '0000', 'TechHub')} 
                className="text-[9px] px-4 py-2 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-full font-black border border-indigo-100 dark:border-slate-700 transition hover:scale-105"
              >
-               VNDR: 0000
+               SELLER: 0000
              </button>
           </div>
         </div>
