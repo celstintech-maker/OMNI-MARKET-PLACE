@@ -11,8 +11,9 @@ import { AuthView } from './views/AuthView';
 import { ChatSupport } from './components/ChatSupport';
 import { WishlistView } from './views/WishlistView';
 import { BuyerDashboard } from './views/BuyerDashboard';
+import { LegalView } from './views/LegalView';
 
-type View = 'home' | 'seller-dashboard' | 'admin-dashboard' | 'store-page' | 'auth' | 'wishlist' | 'buyer-dashboard';
+type View = 'home' | 'seller-dashboard' | 'admin-dashboard' | 'store-page' | 'auth' | 'wishlist' | 'buyer-dashboard' | 'privacy' | 'terms' | 'sourcing' | 'cookies';
 type Theme = 'light' | 'dark';
 
 export interface SiteConfig {
@@ -165,6 +166,14 @@ const App: React.FC = () => {
         }
       } else if (hash === '#/home' || hash === '') {
         setCurrentView('home');
+      } else if (hash === '#/privacy') {
+        setCurrentView('privacy');
+      } else if (hash === '#/terms') {
+        setCurrentView('terms');
+      } else if (hash === '#/sourcing') {
+        setCurrentView('sourcing');
+      } else if (hash === '#/cookies') {
+        setCurrentView('cookies');
       }
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -346,7 +355,8 @@ const App: React.FC = () => {
           {currentView === 'buyer-dashboard' && currentUser && <BuyerDashboard user={currentUser} transactions={transactions} />}
           {currentView === 'wishlist' && <WishlistView products={products} wishlist={wishlist} onNavigateToStore={handleNavigateToStore} onToggleWishlist={handleToggleWishlist} />}
           {currentView === 'auth' && <AuthView stores={stores.filter(s => s.status === 'active')} onLogin={handleLogin} />}
-          {currentView === 'admin-dashboard' && currentUser?.role === UserRole.ADMIN && <AdminDashboard vendors={vendors} stores={stores} products={products} transactions={transactions} siteConfig={siteConfig} onUpdateConfig={setSiteConfig} onToggleVendorStatus={() => {}} onDeleteVendor={handleDeleteUser} onUpdateUser={handleUpdateUser} />}
+          {currentView === 'admin-dashboard' && currentUser?.role === UserRole.ADMIN && <AdminDashboard vendors={vendors} stores={stores} products={products} transactions={transactions} allMessages={allMessages} siteConfig={siteConfig} onUpdateConfig={setSiteConfig} onToggleVendorStatus={() => {}} onDeleteVendor={handleDeleteUser} onUpdateUser={handleUpdateUser} />}
+          {(currentView === 'privacy' || currentView === 'terms' || currentView === 'sourcing' || currentView === 'cookies') && <LegalView view={currentView} config={siteConfig} />}
         </Layout>
 
         {isCartOpen && (

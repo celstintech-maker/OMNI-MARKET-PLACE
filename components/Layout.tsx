@@ -49,7 +49,7 @@ export const Layout: React.FC<LayoutProps> = ({
               </svg>
             </button>
             <div 
-              onClick={() => { onNavigate('home'); setMobileMenuOpen(false); }} 
+              onClick={() => { onNavigate('home'); window.location.hash = '#/home'; setMobileMenuOpen(false); }} 
               className="flex items-center gap-2 cursor-pointer"
             >
               {config.logoUrl ? (
@@ -64,7 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({
               {navItems.map((item) => (
                 <button 
                   key={item.view}
-                  onClick={() => onNavigate(item.view)}
+                  onClick={() => { onNavigate(item.view); window.location.hash = `#/${item.view}`; }}
                   className={`px-4 py-2 rounded-xl text-[10px] uppercase tracking-widest font-black transition-all ${currentView === item.view ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-gray-500 hover:text-indigo-600'}`}
                 >
                   {item.label}
@@ -86,7 +86,7 @@ export const Layout: React.FC<LayoutProps> = ({
             {user ? (
               <button onClick={onLogout} className="p-2 sm:p-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-90"><Icons.Logout /></button>
             ) : (
-              <button onClick={() => onNavigate('auth')} className="bg-indigo-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition">Sign In</button>
+              <button onClick={() => { onNavigate('auth'); window.location.hash = '#/auth'; }} className="bg-indigo-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition">Sign In</button>
             )}
           </div>
         </div>
@@ -96,20 +96,67 @@ export const Layout: React.FC<LayoutProps> = ({
         {children}
       </main>
 
-      <footer className="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 py-12 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
-          <div className="col-span-1 sm:col-span-2">
-            <h2 className="text-2xl font-black text-indigo-600 tracking-tighter mb-4">{config.siteName}</h2>
-            <p className="text-gray-500 dark:text-slate-400 text-sm max-w-sm leading-relaxed">{config.footerText}</p>
+      <footer className="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 py-16 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-12 gap-12">
+          <div className="md:col-span-5 space-y-6">
+            <h2 className="text-2xl font-black text-indigo-600 tracking-tighter">{config.siteName}</h2>
+            <p className="text-gray-500 dark:text-slate-400 text-sm max-w-sm leading-relaxed font-medium">
+              {config.footerText}
+            </p>
+            <div className="flex gap-4">
+              {/* Social placeholders */}
+              <div className="w-10 h-10 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-gray-400 hover:text-indigo-600 cursor-pointer transition">𝕏</div>
+              <div className="w-10 h-10 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-gray-400 hover:text-indigo-600 cursor-pointer transition">in</div>
+              <div className="w-10 h-10 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-gray-400 hover:text-indigo-600 cursor-pointer transition">fb</div>
+            </div>
           </div>
-          <div>
-            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Contact</h4>
-            <ul className="space-y-2 text-xs font-bold text-gray-600 dark:text-slate-300">
-              <li>{config.contactEmail}</li>
-              <li>{config.contactPhone}</li>
-              <li>{config.officeAddress}</li>
+          
+          <div className="md:col-span-2">
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Marketplace</h4>
+            <ul className="space-y-4 text-xs font-bold text-gray-600 dark:text-slate-300">
+              <li><button onClick={() => { onNavigate('home'); window.location.hash = '#/home'; }} className="hover:text-indigo-600 transition text-left">Browse Assets</button></li>
+              <li><button onClick={() => { onNavigate('wishlist'); window.location.hash = '#/wishlist'; }} className="hover:text-indigo-600 transition text-left">My Wishlist</button></li>
+              <li><button onClick={() => { onNavigate('auth'); window.location.hash = '#/auth'; }} className="hover:text-indigo-600 transition text-left">Vendor Entry</button></li>
+              <li><button onClick={() => { onNavigate('auth'); window.location.hash = '#/auth'; }} className="hover:text-indigo-600 transition text-left">Buyer Login</button></li>
             </ul>
           </div>
+
+          <div className="md:col-span-2">
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Legal</h4>
+            <ul className="space-y-4 text-xs font-bold text-gray-600 dark:text-slate-300">
+              <li><button onClick={() => window.location.hash = '#/privacy'} className="hover:text-indigo-600 transition text-left">Privacy Policy</button></li>
+              <li><button onClick={() => window.location.hash = '#/terms'} className="hover:text-indigo-600 transition text-left">Terms of Service</button></li>
+              <li><button onClick={() => window.location.hash = '#/sourcing'} className="hover:text-indigo-600 transition text-left">Sourcing Protocol</button></li>
+              <li><button onClick={() => window.location.hash = '#/cookies'} className="hover:text-indigo-600 transition text-left">Cookie Settings</button></li>
+            </ul>
+          </div>
+
+          <div className="md:col-span-3">
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Global Office</h4>
+            <ul className="space-y-4 text-xs font-bold text-gray-600 dark:text-slate-300">
+              <li className="flex items-start gap-3">
+                <span className="text-indigo-500">📧</span>
+                <span>{config.contactEmail}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-indigo-500">📞</span>
+                <span>{config.contactPhone}</span>
+              </li>
+              <li className="flex items-start gap-3 leading-relaxed">
+                <span className="text-indigo-500">📍</span>
+                <span>{config.officeAddress}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 mt-16 pt-8 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            © {new Date().getFullYear()} {config.siteName}. All Rights Reserved.
+          </p>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            Powered by Omni Distributed Network
+          </p>
         </div>
       </footer>
     </div>

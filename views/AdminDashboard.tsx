@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { User, Store, Product, Transaction, UserRole } from '../types';
+import { User, Store, Product, Transaction, UserRole, Message } from '../types';
 import { COUNTRY_CURRENCY_MAP } from '../constants';
 import { SiteConfig } from '../App';
+import { ChatSupport } from '../components/ChatSupport';
 
 interface AdminDashboardProps {
   vendors: User[]; 
@@ -10,6 +11,7 @@ interface AdminDashboardProps {
   products: Product[];
   transactions: Transaction[];
   siteConfig: SiteConfig;
+  allMessages?: Record<string, Message[]>;
   onUpdateConfig: (config: SiteConfig) => void;
   onToggleVendorStatus: (id: string) => void;
   onDeleteVendor: (id: string) => void;
@@ -17,13 +19,13 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  vendors: allUsers, stores, products, transactions, siteConfig, onUpdateConfig, onToggleVendorStatus, onDeleteVendor, onUpdateUser 
+  vendors: allUsers, stores, products, transactions, siteConfig, allMessages = {}, onUpdateConfig, onToggleVendorStatus, onDeleteVendor, onUpdateUser 
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'verifications' | 'finance' | 'cms' | 'buyers'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'verifications' | 'finance' | 'cms' | 'buyers' | 'chat_logs'>('users');
   const [selectedSellerDetail, setSelectedSellerDetail] = useState<User | null>(null);
+  const [monitoredChannel, setMonitoredChannel] = useState<string | null>(null);
 
   const pendingVendors = allUsers.filter(v => v.verification?.verificationStatus === 'pending');
-  const verifiedVendors = allUsers.filter(v => v.verification?.verificationStatus === 'verified');
   const buyers = allUsers.filter(v => v.role === UserRole.BUYER);
   
   const totalGTV = transactions.reduce((acc, curr) => acc + curr.amount, 0);
@@ -35,6 +37,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       verification: { ...vendor.verification!, verificationStatus: status }
     });
   };
+
+  if (monitoredChannel) {
+    const store = stores.find(s => s.id === monitoredChannel);
+    return (
+      <div className="animate-fade-in space-y-8 bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border dark:border-slate-800 shadow-2xl h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setMonitoredChannel(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            </button>
+            <h2 className="text-3xl font-black tracking-tighter">Live Surveillance: {store?.name || 'System Support'}</h2>
+          </div>
+          <span className="bg-red-500 text-white text-[8px] font-black uppercase px-3 py-1 rounded-full animate-pulse">Monitoring Active</span>
+        </div>
+        <div className="flex-1 overflow-hidden rounded-3xl border dark:border-slate-800">
+           <ChatSupport 
+             currentUser={allUsers.find(u => u.role === UserRole.ADMIN) || null} 
+             isEmbedded={true} 
+             forcedChannelId={monitoredChannel} 
+             theme="light" 
+             globalMessages={allMessages}
+           />
+        </div>
+      </div>
+    );
+  }
 
   if (selectedSellerDetail) {
     const v = selectedSellerDetail.verification;
@@ -94,6 +122,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <button onClick={() => setActiveTab('users')} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${activeTab === 'users' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>Sellers</button>
         <button onClick={() => setActiveTab('buyers')} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${activeTab === 'buyers' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>Buyers Registry</button>
         <button onClick={() => setActiveTab('verifications')} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap relative ${activeTab === 'verifications' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>Applications {pendingVendors.length > 0 && <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[8px]">{pendingVendors.length}</span>}</button>
+        <button onClick={() => setActiveTab('chat_logs')} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${activeTab === 'chat_logs' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>Master Chat Logs</button>
         <button onClick={() => setActiveTab('cms')} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${activeTab === 'cms' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>Site Customization</button>
         <button onClick={() => setActiveTab('finance')} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${activeTab === 'finance' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>Finance Hub</button>
       </div>
@@ -125,6 +154,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'chat_logs' && (
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
+          <div className="p-8 border-b dark:border-slate-800 bg-indigo-50/30">
+            <h4 className="text-sm font-black uppercase tracking-widest text-indigo-600">Global Communication Hub</h4>
+            <p className="text-xs text-gray-500 mt-1 font-medium">Monitor all real-time interactions between vendors and buyers.</p>
+          </div>
+          <table className="min-w-full divide-y dark:divide-slate-800 font-bold">
+            <thead className="bg-gray-50 dark:bg-slate-800">
+              <tr>
+                <th className="px-10 py-5 text-left text-[10px] uppercase tracking-widest text-gray-400">Conversation Node</th>
+                <th className="px-10 py-5 text-left text-[10px] uppercase tracking-widest text-gray-400">Message Count</th>
+                <th className="px-10 py-5 text-left text-[10px] uppercase tracking-widest text-gray-400">Last Activity</th>
+                <th className="px-10 py-5 text-right text-[10px] uppercase tracking-widest text-gray-400">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y dark:divide-slate-800">
+              {['system', ...stores.map(s => s.id)].map(channelId => {
+                const msgs = allMessages[channelId] || [];
+                const store = stores.find(s => s.id === channelId);
+                const lastMsg = msgs[msgs.length - 1];
+                return (
+                  <tr key={channelId} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                    <td className="px-10 py-6">
+                      <p className="font-black">{channelId === 'system' ? 'Omni Global Support' : (store?.name || 'Unknown Store')}</p>
+                      <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">ID: {channelId}</p>
+                    </td>
+                    <td className="px-10 py-6 text-xs text-indigo-600 font-black">{msgs.length} Pkts</td>
+                    <td className="px-10 py-6 text-[10px] font-bold text-gray-400">
+                      {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString() : 'No Activity'}
+                    </td>
+                    <td className="px-10 py-6 text-right">
+                      <button 
+                        onClick={() => setMonitoredChannel(channelId)}
+                        className="text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:underline"
+                      >
+                        Enter Surveillance
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
