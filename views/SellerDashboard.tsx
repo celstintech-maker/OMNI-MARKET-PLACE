@@ -11,15 +11,26 @@ interface SellerDashboardProps {
   onUpdateUser: (updatedUser: User) => void;
   unreadCount?: number;
   onClearNotifications?: () => void;
+  onUpdateProduct?: (updatedProduct: Product) => void;
 }
 
 export const SellerDashboard: React.FC<SellerDashboardProps> = ({ 
-  user, products, onAddProduct, onDeleteProduct, onUpdateUser, unreadCount = 0, onClearNotifications 
+  user, products, onAddProduct, onDeleteProduct, onUpdateUser, unreadCount = 0, onClearNotifications, onUpdateProduct 
 }) => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'messages' | 'ai' | 'finance'>('inventory');
+  
+  // AI State management
+  const [aiEnabled, setAiEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`ai_enabled_${user.id}`);
+    return saved === null ? true : JSON.parse(saved);
+  });
   const [aiPrompts, setAiPrompts] = useState<string[]>(() => {
     const saved = localStorage.getItem(`ai_persona_${user.id}`);
-    return saved ? JSON.parse(saved) : Array(5).fill('');
+    return saved ? JSON.parse(saved) : Array(10).fill('');
+  });
+  const [chatDecay, setChatDecay] = useState<number>(() => {
+    const saved = localStorage.getItem(`ai_decay_${user.id}`);
+    return saved ? JSON.parse(saved) : 5;
   });
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,14 +50,24 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const [bizForm, setBizForm] = useState({
     businessName: user.storeName || '',
-    businessAddress: '',
-    phoneNumber: '',
-    country: 'Nigeria'
+    businessAddress: user.verification?.businessAddress || '',
+    phoneNumber: user.verification?.phoneNumber || '',
+    country: user.verification?.country || user.country || 'Nigeria',
+    state: user.verification?.state || '',
+    city: user.verification?.city || ''
   });
 
   const handleSaveAiConfig = () => {
     localStorage.setItem(`ai_persona_${user.id}`, JSON.stringify(aiPrompts));
-    alert("AI Neural Interface Updated");
+    localStorage.setItem(`ai_enabled_${user.id}`, JSON.stringify(aiEnabled));
+    localStorage.setItem(`ai_decay_${user.id}`, JSON.stringify(chatDecay));
+    alert("Neural Link Updated: Settings synchronized to store node.");
+  };
+
+  const handleStockUpdate = (product: Product, newStock: number) => {
+    if (onUpdateProduct) {
+      onUpdateProduct({ ...product, stock: Math.max(0, newStock) });
+    }
   };
 
   const handleSubmitVerification = (e: React.FormEvent) => {
@@ -87,10 +108,45 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
              </div>
            ) : (
              <form onSubmit={handleSubmitVerification} className="space-y-4 text-left bg-gray-50 dark:bg-slate-800/50 p-6 rounded-[2rem]">
-                <input required placeholder="Legal Entity Name" value={bizForm.businessName} onChange={e => setBizForm({...bizForm, businessName: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm" />
-                <input required placeholder="Phone Protocol" value={bizForm.phoneNumber} onChange={e => setBizForm({...bizForm, phoneNumber: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm" />
-                <textarea required placeholder="Operational HQ Address" value={bizForm.businessAddress} onChange={e => setBizForm({...bizForm, businessAddress: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none h-24 text-sm font-medium bg-white dark:bg-slate-900 shadow-sm" />
-                <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200">Submit Verification</button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 px-2 tracking-widest">Legal Entity</label>
+                    <input required placeholder="Business Name" value={bizForm.businessName} onChange={e => setBizForm({...bizForm, businessName: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 px-2 tracking-widest">Phone Node</label>
+                    <input required placeholder="+123..." value={bizForm.phoneNumber} onChange={e => setBizForm({...bizForm, phoneNumber: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 px-2 tracking-widest">Region Selection</label>
+                  <select 
+                    value={bizForm.country} 
+                    onChange={e => setBizForm({...bizForm, country: e.target.value})}
+                    className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm appearance-none"
+                  >
+                    {Object.keys(COUNTRY_CURRENCY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 px-2 tracking-widest">State / Province</label>
+                    <input required placeholder="State" value={bizForm.state} onChange={e => setBizForm({...bizForm, state: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 px-2 tracking-widest">City / District</label>
+                    <input required placeholder="City" value={bizForm.city} onChange={e => setBizForm({...bizForm, city: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none text-sm font-bold bg-white dark:bg-slate-900 shadow-sm" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 px-2 tracking-widest">HQ Street Address</label>
+                  <textarea required placeholder="Full physical address..." value={bizForm.businessAddress} onChange={e => setBizForm({...bizForm, businessAddress: e.target.value})} className="w-full p-4 rounded-xl border-none outline-none h-24 text-sm font-medium bg-white dark:bg-slate-900 shadow-sm" />
+                </div>
+
+                <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200 mt-4 transition-transform active:scale-95">Submit Verification Protocol</button>
              </form>
            )}
         </div>
@@ -123,37 +179,83 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       {activeTab === 'ai' && (
         <div className="space-y-8 animate-slide-up max-w-4xl">
            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 shadow-sm">
-              <div className="flex items-center gap-4 mb-8">
-                 <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-black tracking-tight uppercase">Neural Store Persona</h3>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Configure your store's AI Sales Agent</p>
-                 </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                   </div>
+                   <div>
+                      <h3 className="text-xl font-black tracking-tight uppercase">Neural Store Persona</h3>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Configure your store's AI Sales Agent</p>
+                   </div>
+                </div>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 p-2 pr-4 rounded-2xl border dark:border-slate-700">
+                  <button 
+                    onClick={() => setAiEnabled(!aiEnabled)}
+                    className={`w-12 h-6 rounded-full transition-all relative ${aiEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-slate-600'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${aiEnabled ? 'left-7' : 'left-1'}`} />
+                  </button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                    Agent {aiEnabled ? 'Active' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.2em]">Session Governance</h4>
+                  <div className="p-5 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border dark:border-slate-700">
+                    <label className="text-[9px] font-black uppercase text-gray-400 block mb-2">Auto-Clear Duration (Minutes)</label>
+                    <div className="flex items-center gap-4">
+                      <input 
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={chatDecay}
+                        onChange={(e) => setChatDecay(parseInt(e.target.value) || 5)}
+                        className="w-24 p-3 bg-white dark:bg-slate-900 rounded-xl outline-none font-black text-indigo-600 border dark:border-slate-700"
+                      />
+                      <p className="text-[10px] font-bold text-gray-500 leading-tight">
+                        Idle chats will be purged after this duration to maintain session integrity.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-end">
+                   <div className="p-5 bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800 w-full">
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Status Report</p>
+                      <p className="text-xs font-bold text-gray-500">
+                        {aiEnabled ? `Agent currently processing inquiries with a ${chatDecay}m decay threshold.` : "Neural link severed. Customer inquiries require manual oversight."}
+                      </p>
+                   </div>
+                </div>
               </div>
               
-              <div className="space-y-6">
-                 {aiPrompts.map((prompt, idx) => (
-                   <div key={idx}>
-                      <label className="text-[9px] font-black uppercase text-indigo-500 tracking-[0.2em] mb-2 block">Instruction Node {idx + 1}</label>
-                      <input 
-                        value={prompt}
-                        onChange={(e) => {
-                          const newPrompts = [...aiPrompts];
-                          newPrompts[idx] = e.target.value;
-                          setAiPrompts(newPrompts);
-                        }}
-                        placeholder="e.g. Always mention our 2-year warranty."
-                        className="w-full p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border-none outline-none font-bold text-sm shadow-inner"
-                      />
-                   </div>
-                 ))}
+              <div className="space-y-4">
+                 <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.2em] mb-4">Core Instruction Nodes (Max 10)</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {aiPrompts.map((prompt, idx) => (
+                     <div key={idx} className="space-y-1">
+                        <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest px-1">Node {idx + 1}</label>
+                        <input 
+                          value={prompt}
+                          onChange={(e) => {
+                            const newPrompts = [...aiPrompts];
+                            newPrompts[idx] = e.target.value;
+                            setAiPrompts(newPrompts);
+                          }}
+                          placeholder={`Instruction fragment ${idx + 1}...`}
+                          className="w-full p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border-none outline-none font-bold text-sm shadow-inner focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                     </div>
+                   ))}
+                 </div>
                  <button 
                   onClick={handleSaveAiConfig}
-                  className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                  className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-6 rounded-3xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all mt-8"
                  >
-                   Sync Neural Configuration
+                   Synchronize Neural Config
                  </button>
               </div>
            </div>
@@ -215,7 +317,16 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               <div key={p.id} className="p-6 space-y-3">
                  <div className="flex justify-between items-start">
                     <span className="text-sm font-black dark:text-white leading-none truncate max-w-[60%]">{p.name}</span>
-                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${p.stock < 5 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{p.stock} Units</span>
+                    <div className="flex items-center gap-2">
+                       <input 
+                         type="number" 
+                         min="0"
+                         value={p.stock}
+                         onChange={(e) => handleStockUpdate(p, parseInt(e.target.value) || 0)}
+                         className="w-16 p-1 bg-gray-50 dark:bg-slate-800 rounded-lg text-center font-black text-[10px] outline-none border border-transparent focus:border-indigo-600"
+                       />
+                       <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${p.stock < 5 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>Units</span>
+                    </div>
                  </div>
                  <div className="flex justify-between items-center pt-1">
                     <span className="text-indigo-600 font-black text-lg">{currency}{p.price.toLocaleString()}</span>
@@ -231,7 +342,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               <tr>
                 <th className="px-10 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Listing</th>
                 <th className="px-10 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Price</th>
-                <th className="px-10 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Stock</th>
+                <th className="px-10 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Availability Protocol</th>
               </tr>
             </thead>
             <tbody className="divide-y dark:divide-slate-800">
@@ -239,7 +350,19 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 <tr key={p.id}>
                   <td className="px-10 py-6">{p.name}</td>
                   <td className="px-10 py-6 text-indigo-600">{currency}{p.price.toLocaleString()}</td>
-                  <td className="px-10 py-6 text-right"><span className={`px-3 py-1 rounded-lg text-[10px] ${p.stock < 5 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{p.stock} Units</span></td>
+                  <td className="px-10 py-6 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                       <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Adjust Stock:</label>
+                       <input 
+                         type="number" 
+                         min="0"
+                         value={p.stock}
+                         onChange={(e) => handleStockUpdate(p, parseInt(e.target.value) || 0)}
+                         className="w-20 p-2 bg-gray-50 dark:bg-slate-800 rounded-xl text-center font-black text-xs outline-none border border-transparent focus:border-indigo-600 transition-all"
+                       />
+                       <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${p.stock < 5 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{p.stock < 5 ? 'Low Stock' : 'Stable'}</span>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -255,6 +378,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             forcedChannelId={myStoreId} 
             theme="light" 
             aiInstructions={aiPrompts.filter(p => p.trim() !== '')}
+            decayMinutes={chatDecay}
           />
         </div>
       )}

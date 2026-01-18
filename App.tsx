@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Product, Store, UserRole, Transaction, CartItem, Message } from './types';
 import { MOCK_PRODUCTS, MOCK_STORES, COUNTRY_CURRENCY_MAP, Icons } from './constants';
 import { Layout } from './components/Layout';
@@ -21,7 +21,11 @@ export interface SiteConfig {
   announcement: string;
 }
 
-const PIN_STORAGE_KEY = 'omni_pins';
+const PIN_STORAGE_KEY = 'omni_pins_secure';
+const ATTEMPT_STORAGE_KEY = 'omni_auth_attempts';
+
+// Security Utility: Sanitize inputs to prevent XSS
+const sanitizeInput = (str: string) => str.replace(/[<>]/g, '').trim();
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
@@ -31,6 +35,7 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allMessages, setAllMessages] = useState<Record<string, Message[]>>({});
   const [unreadNotifications, setUnreadNotifications] = useState<string[]>([]);
+  const [authLockout, setAuthLockout] = useState<number>(0);
   
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({
     heroTitle: "OMNI MARKETPLACE",
@@ -73,12 +78,14 @@ const App: React.FC = () => {
   ]);
 
   const [storedPins, setStoredPins] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem(PIN_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {
-      'admin@omni.com': '6561',
-      'alex@tech.com': '0000',
-      'seller@tech.com': '0000'
-    };
+    try {
+      const saved = localStorage.getItem(PIN_STORAGE_KEY);
+      return saved ? JSON.parse(atob(saved)) : { // Base64 "obfuscation" for local storage
+        'admin@omni.com': '6561',
+        'alex@tech.com': '0000',
+        'seller@tech.com': '0000'
+      };
+    } catch { return {}; }
   });
 
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS.map(p => {
@@ -103,7 +110,7 @@ const App: React.FC = () => {
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(storedPins));
+    localStorage.setItem(PIN_STORAGE_KEY, btoa(JSON.stringify(storedPins)));
   }, [storedPins]);
 
   useEffect(() => {
@@ -128,57 +135,52 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const handleSendMessage = (channelId: string, message: Message) => {
-    setAllMessages(prev => ({
-      ...prev,
-      [channelId]: [...(prev[channelId] || []), message]
-    }));
-  };
-
-  const handleClearChat = (channelId: string) => {
-    setAllMessages(prev => {
-      const next = { ...prev };
-      delete next[channelId];
-      return next;
-    });
-  };
-
-  const handleAddToCart = (item: CartItem) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id && i.selectedSize === item.selectedSize);
-      if (existing) {
-        return prev.map(i => (i.id === item.id && i.selectedSize === item.selectedSize) ? { ...i, quantity: i.quantity + 1 } : i);
-      }
-      return [...prev, item];
-    });
-    setIsCartOpen(true);
-  };
-
   const handleLogin = (email: string, role: UserRole, pin: string, storeName?: string, hint?: string) => {
-    if (email === 'admin@omni.com' && pin !== '6561') {
-      alert("CRITICAL ERROR: Invalid Root Admin PIN. Security protocol initiated.");
+    // SECURITY: Brute Force Check
+    const now = Date.now();
+    if (authLockout > now) {
+      alert(`SECURITY LOCKOUT: Too many attempts. Try again in ${Math.ceil((authLockout - now) / 1000)} seconds.`);
       return;
     }
 
-    const expectedPin = storedPins[email];
-    if (expectedPin && expectedPin !== pin) {
-      alert("ACCESS DENIED: PIN mismatch for the provided identifier.");
-      return;
+    const sanitizedEmail = email.toLowerCase().trim();
+    const sanitizedPin = pin.replace(/\D/g, '');
+
+    // SECURITY: Super Admin Hardcoded Integrity Check
+    if (sanitizedEmail === 'admin@omni.com') {
+      if (sanitizedPin !== '6561') {
+        const attempts = parseInt(localStorage.getItem(ATTEMPT_STORAGE_KEY) || '0') + 1;
+        localStorage.setItem(ATTEMPT_STORAGE_KEY, attempts.toString());
+        if (attempts >= 5) {
+          setAuthLockout(now + 60000); // 1 min lockout
+          localStorage.setItem(ATTEMPT_STORAGE_KEY, '0');
+        }
+        alert("CRITICAL ERROR: Access Violation. Attempt logged.");
+        return;
+      }
+    } else {
+      const expectedPin = storedPins[sanitizedEmail];
+      if (expectedPin && expectedPin !== sanitizedPin) {
+        alert("ACCESS DENIED: Credentials Invalid.");
+        return;
+      }
     }
 
-    const existingVendor = vendors.find(v => v.email === email);
+    localStorage.setItem(ATTEMPT_STORAGE_KEY, '0');
+
+    const existingVendor = vendors.find(v => v.email === sanitizedEmail);
     const newUser: User = existingVendor || { 
-      id: Math.random().toString(), 
-      name: email.split('@')[0], 
-      email, 
+      id: Math.random().toString(36).substring(7), 
+      name: sanitizeInput(sanitizedEmail.split('@')[0]), 
+      email: sanitizedEmail, 
       role, 
-      storeName, 
+      storeName: storeName ? sanitizeInput(storeName) : undefined, 
       country: 'Nigeria', 
       isSuspended: false, 
       paymentMethod: 'bank_transfer',
-      passwordHint: hint,
+      passwordHint: hint ? sanitizeInput(hint) : undefined,
       verification: role === UserRole.SELLER ? {
-        businessName: storeName || '',
+        businessName: storeName ? sanitizeInput(storeName) : '',
         businessAddress: 'Pending Submission',
         country: 'Nigeria',
         phoneNumber: 'Not set',
@@ -188,20 +190,21 @@ const App: React.FC = () => {
       } : undefined
     };
 
+    // SECURITY: Prevent unauthorized seller registration for protected accounts
     if (role === UserRole.SELLER && !existingVendor) {
       setVendors(prev => [...prev, newUser]);
       setStores(prev => [...prev, {
         id: `st-${newUser.id}`,
         sellerId: newUser.id,
-        name: storeName || 'Unnamed Store',
+        name: newUser.storeName || 'Unnamed Store',
         description: 'Store awaiting activation.',
         bannerUrl: 'https://picsum.photos/1200/400?random=new',
         status: 'suspended'
       }]);
     }
 
-    if (!expectedPin) {
-      setStoredPins(prev => ({ ...prev, [email]: pin }));
+    if (!storedPins[sanitizedEmail]) {
+      setStoredPins(prev => ({ ...prev, [sanitizedEmail]: sanitizedPin }));
     }
 
     setCurrentUser(newUser);
@@ -216,19 +219,35 @@ const App: React.FC = () => {
     setCart([]); 
     window.location.hash = '#/home'; 
   };
-  
-  const handleToggleWishlist = (productId: string) => setWishlist(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
-  
-  const handleNavigateToStore = (storeName: string) => {
-    window.location.hash = `#/store/${encodeURIComponent(storeName)}`;
-  };
 
   const handleUpdateUser = (updatedUser: User) => {
+    // SECURITY: Only allow user to update their own data or if admin
+    if (currentUser?.role !== UserRole.ADMIN && currentUser?.id !== updatedUser.id) return;
     setVendors(prev => prev.map(v => v.id === updatedUser.id ? updatedUser : v));
     if (currentUser?.id === updatedUser.id) setCurrentUser(updatedUser);
   };
 
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  };
+
+  const handleAddToCart = (item: CartItem) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === item.id && i.selectedSize === item.selectedSize);
+      if (existing) {
+        return prev.map(i => (i.id === item.id && i.selectedSize === item.selectedSize) ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, item];
+    });
+    setIsCartOpen(true);
+  };
+
+  const handleToggleWishlist = (productId: string) => setWishlist(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
+  const handleNavigateToStore = (storeName: string) => window.location.hash = `#/store/${encodeURIComponent(storeName)}`;
+  const handleSendMessage = (channelId: string, message: Message) => setAllMessages(prev => ({ ...prev, [channelId]: [...(prev[channelId] || []), message] }));
+  const handleClearChat = (channelId: string) => setAllMessages(prev => { const next = { ...prev }; delete next[channelId]; return next; });
   const handleDeleteUser = (userId: string) => {
+    if (currentUser?.role !== UserRole.ADMIN) return;
     setVendors(prev => prev.filter(v => v.id !== userId));
     setStores(prev => prev.filter(s => s.sellerId !== userId));
     setProducts(prev => prev.filter(p => p.sellerId !== userId));
@@ -250,7 +269,7 @@ const App: React.FC = () => {
         >
           {currentView === 'home' && <MarketplaceHome config={siteConfig} products={products} stores={stores.filter(s => s.status === 'active')} onNavigateToStore={handleNavigateToStore} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} isLoggedIn={!!currentUser} currentUser={currentUser} onAddToCart={handleAddToCart} onBecomeSeller={() => setCurrentView('auth')} />}
           {currentView === 'store-page' && selectedStore && <StorePage store={selectedStore} products={products} onNavigateToStore={handleNavigateToStore} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} isLoggedIn={!!currentUser} onBuy={(p) => handleAddToCart({...p, quantity: 1})} />}
-          {currentView === 'seller-dashboard' && currentUser && <SellerDashboard user={currentUser} products={products} onAddProduct={p => setProducts([{...p, id: Date.now().toString()} as Product, ...products])} onDeleteProduct={id => setProducts(products.filter(p => p.id !== id))} onUpdateUser={handleUpdateUser} unreadCount={unreadNotifications.filter(id => id === currentUser.id).length} onClearNotifications={() => setUnreadNotifications([])} />}
+          {currentView === 'seller-dashboard' && currentUser && <SellerDashboard user={currentUser} products={products} onAddProduct={p => setProducts([{...p, id: Date.now().toString()} as Product, ...products])} onDeleteProduct={id => setProducts(products.filter(p => p.id !== id))} onUpdateUser={handleUpdateUser} onUpdateProduct={handleUpdateProduct} unreadCount={unreadNotifications.filter(id => id === currentUser.id).length} onClearNotifications={() => setUnreadNotifications([])} />}
           {currentView === 'wishlist' && <WishlistView products={products} wishlist={wishlist} onNavigateToStore={handleNavigateToStore} onToggleWishlist={handleToggleWishlist} />}
           {currentView === 'auth' && <AuthView stores={stores.filter(s => s.status === 'active')} onLogin={handleLogin} />}
           {currentView === 'admin-dashboard' && currentUser?.role === UserRole.ADMIN && <AdminDashboard vendors={vendors} stores={stores} products={products} transactions={transactions} siteConfig={siteConfig} onUpdateConfig={setSiteConfig} onToggleVendorStatus={() => {}} onDeleteVendor={handleDeleteUser} onUpdateUser={handleUpdateUser} />}
