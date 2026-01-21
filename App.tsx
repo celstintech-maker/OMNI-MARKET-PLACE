@@ -247,8 +247,16 @@ const App: React.FC = () => {
   }, [vendors]);
 
   const handleNavigate = (view: string) => {
-    setCurrentView(view as View);
-    if (view !== 'store-page') setSelectedStore(null);
+    let target = view as View;
+    if (target === 'seller-dashboard' && currentUser?.role !== UserRole.SELLER) {
+      target = 'auth';
+    } else if (target === 'admin-dashboard' && currentUser?.role !== UserRole.ADMIN) {
+      target = 'auth';
+    } else if (target === 'buyer-dashboard' && !currentUser) {
+      target = 'home';
+    }
+    setCurrentView(target);
+    if (target !== 'store-page') setSelectedStore(null);
   };
 
   const handleAddCategory = (category: string) => {
@@ -381,7 +389,11 @@ const App: React.FC = () => {
     alert('Order placed successfully!');
     setCart([]);
     setIsCartOpen(false);
-    handleNavigate('buyer-dashboard');
+    if (currentUser) {
+      handleNavigate('buyer-dashboard');
+    } else {
+      handleNavigate('home');
+    }
   };
 
   const handleToggleVendorStatus = (id: string) => {
