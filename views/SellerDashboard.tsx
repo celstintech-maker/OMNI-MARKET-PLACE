@@ -284,6 +284,30 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            <h2 className="text-xl sm:text-3xl font-black mb-2 tracking-tighter uppercase">Identity Verification</h2>
            <p className="text-gray-500 mb-8 text-xs font-medium">Verify your business entity to activate your marketplace node.</p>
            
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
+             <div className="bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
+               <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Bank Linkage</p>
+               <div className="flex items-center justify-between">
+                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${user.bankDetails?.accountNumber && user.bankDetails.bankName ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                   {user.bankDetails?.accountNumber && user.bankDetails.bankName ? 'Linked' : 'Not Linked'}
+                 </span>
+                 <button onClick={() => setActiveTab('finance')} className="text-[10px] font-black uppercase text-indigo-600 underline tracking-widest">Configure</button>
+               </div>
+             </div>
+             <div className="bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
+               <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Government ID</p>
+               <div className="flex items-center justify-between">
+                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${bizForm.govtIdUrl || user.verification?.govtIdUrl ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                   {bizForm.govtIdUrl || user.verification?.govtIdUrl ? 'Uploaded' : 'Required'}
+                 </span>
+                 <div className="relative">
+                   <input type="file" ref={govtIdInputRef} onChange={handleGovtIdUpload} className="hidden" accept="image/*,.pdf" />
+                   <button onClick={() => govtIdInputRef.current?.click()} className="text-[10px] font-black uppercase text-indigo-600 underline tracking-widest">Upload</button>
+                 </div>
+               </div>
+             </div>
+           </div>
+           
            {user.gracePeriodAllowed && (
              <div className="mb-8 bg-amber-50 dark:bg-amber-900/20 p-6 rounded-2xl border border-amber-200 dark:border-amber-800">
                 <h4 className="text-amber-800 dark:text-amber-400 font-black uppercase text-xs tracking-widest mb-2">Grace Period Expired</h4>

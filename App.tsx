@@ -253,6 +253,14 @@ const App: React.FC = () => {
     const existing = vendors.find(v => v.email === email);
     if (existing) {
       setCurrentUser(existing);
+      const r = existing.role;
+      if (r === UserRole.ADMIN) {
+        handleNavigate('admin-dashboard');
+      } else if (r === UserRole.SELLER) {
+        handleNavigate('seller-dashboard');
+      } else {
+        handleNavigate('buyer-dashboard');
+      }
     } else {
       const newUser: User = { 
         id: `u-${Date.now()}`, 
@@ -264,8 +272,15 @@ const App: React.FC = () => {
       };
       setVendors([...vendors, newUser]);
       setCurrentUser(newUser);
+      const r = role;
+      if (r === UserRole.ADMIN) {
+        handleNavigate('admin-dashboard');
+      } else if (r === UserRole.SELLER) {
+        handleNavigate('seller-dashboard');
+      } else {
+        handleNavigate('buyer-dashboard');
+      }
     }
-    handleNavigate('home');
   };
 
   const onLogout = () => {

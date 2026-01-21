@@ -180,7 +180,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
                       <span className="bg-green-50 dark:bg-green-900/20 text-green-600 text-[8px] font-black uppercase px-3 py-1 rounded-full">Active</span>
                    </div>
                    <p className="text-gray-500 text-xs sm:text-sm font-medium line-clamp-2 mb-6">{store.description}</p>
-                   <button className="w-full py-4 bg-gray-50 dark:bg-slate-800 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">
+                   <button onClick={() => onNavigateToStore(store.name)} className="w-full py-4 bg-gray-50 dark:bg-slate-800 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">
                       Visit Store
                    </button>
                 </div>

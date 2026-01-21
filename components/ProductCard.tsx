@@ -166,11 +166,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       <span className="bg-slate-900 dark:bg-slate-700 text-white text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em]">Verified Node</span>
                     </div>
                     <h3 className="text-3xl sm:text-4xl font-black tracking-tighter leading-none dark:text-white">{product.name}</h3>
-                    <div className="flex items-center gap-2 text-gray-400 group cursor-pointer" onClick={() => onClickStore(product.storeName)}>
-                      <Icons.Map />
-                      <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-600 transition">Origin: {product.location || 'Global Hub'}</p>
-                    </div>
+                  <div className="flex items-center gap-2 text-gray-400 group cursor-pointer" onClick={() => onClickStore(product.storeName)}>
+                    <Icons.Map />
+                    <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-600 transition">Origin: {product.location || 'Global Hub'}</p>
                   </div>
+                </div>
 
                   <p className="text-gray-500 dark:text-slate-400 text-sm font-medium leading-relaxed italic border-l-4 border-indigo-600 pl-6">"{product.description}"</p>
 
@@ -256,9 +256,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                            <p className="text-xs font-black dark:text-white">{product.storeName}</p>
                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Verified Multi-Vendor Node</p>
                         </div>
-                        <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border dark:border-slate-700">
-                           <span className="text-[9px] font-black uppercase text-gray-400">Port: {payMethod?.icon} {payMethod?.name}</span>
-                        </div>
+                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border dark:border-slate-700">
+                        <span className="text-[9px] font-black uppercase text-gray-400">Port: {payMethod?.icon} {payMethod?.name}</span>
+                     </div>
+                     </div>
+                     <div className="mt-4 flex justify-end">
+                       <button onClick={() => onClickStore(product.storeName)} className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">
+                         Visit Store
+                       </button>
                      </div>
                   </div>
 

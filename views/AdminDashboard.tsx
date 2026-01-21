@@ -26,7 +26,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   vendors: allUsers, stores, products, transactions, siteConfig, allMessages = {}, disputes = [], onUpdateConfig, onToggleVendorStatus, onDeleteVendor, onUpdateUser, onAddUser, onResolveDispute 
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'verifications' | 'finance' | 'cms' | 'buyers' | 'chat_logs' | 'inventory_audit' | 'disputes'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'verifications' | 'finance' | 'cms' | 'buyers' | 'chat_logs' | 'inventory_audit' | 'disputes' | 'system'>('users');
   const [selectedSellerDetail, setSelectedSellerDetail] = useState<User | null>(null);
   const [monitoredChannel, setMonitoredChannel] = useState<string | null>(null);
   const [auditSellerId, setAuditSellerId] = useState<string | null>(null);
@@ -149,7 +149,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           { id: 'verifications', label: 'Audit', badge: pendingVendors.length },
           { id: 'disputes', label: 'Disputes', badge: disputes.filter(d => d.status === 'open').length },
           { id: 'chat_logs', label: 'Surveillance' },
-          { id: 'cms', label: 'System' },
+          { id: 'cms', label: 'CMS' },
+          { id: 'system', label: 'System' },
           { id: 'finance', label: 'Economy' }
         ].map((tab) => (
           <button 
@@ -403,6 +404,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="bg-indigo-600 p-8 sm:p-12 rounded-[2.5rem] text-white shadow-2xl flex flex-col justify-center">
             <p className="text-[8px] sm:text-[10px] font-black uppercase text-indigo-200 tracking-[0.3em] mb-4">Network Revenue</p>
             <p className="text-4xl sm:text-6xl font-black">₦{platformRevenue.toLocaleString()}</p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'system' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 animate-slide-up">
+          <div className="md:col-span-2 bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2.5rem] border dark:border-slate-800 space-y-6">
+            <h4 className="text-xl font-black dark:text-white uppercase tracking-tight">System Overview</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 dark:bg-slate-800/30 p-6 rounded-2xl">
+                <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Active Sellers</p>
+                <p className="text-3xl font-black">{allSellers.length}</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-slate-800/30 p-6 rounded-2xl">
+                <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Total Products</p>
+                <p className="text-3xl font-black">{products.length}</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-slate-800/30 p-6 rounded-2xl">
+                <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Commission Rate</p>
+                <p className="text-3xl font-black">{Math.round(siteConfig.commissionRate * 100)}%</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-slate-800/30 p-6 rounded-2xl">
+                <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Support Channel</p>
+                <p className="text-sm font-black">{siteConfig.contactEmail}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2.5rem] border dark:border-slate-800 space-y-6">
+            <h4 className="text-xl font-black dark:text-white uppercase tracking-tight">Maintenance</h4>
+            <div className="space-y-4">
+              <button className="w-full py-4 bg-gray-50 dark:bg-slate-800 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition">Restart Nodes</button>
+              <button className="w-full py-4 bg-gray-50 dark:bg-slate-800 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition">Clear Cache</button>
+            </div>
           </div>
         </div>
       )}
