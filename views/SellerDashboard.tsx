@@ -207,14 +207,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       ...user,
       verification: {
         ...bizForm,
-        verificationStatus: 'verified',
-        verificationDate: Date.now(),
+        verificationStatus: 'pending',
         productSamples: ['https://picsum.photos/400/300?random=sample1'],
         bankAccountVerified: !!(user.bankDetails?.accountNumber && user.bankDetails.bankName)
       }
     };
     onUpdateUser(updatedUser);
-    alert("IDENTITY VERIFIED: Your seller node is now approved and active.");
+    alert("IDENTITY PROTOCOL INITIATED: Verification submitted. Admin will review and approve.");
   };
 
   const handleCreateListing = () => {

@@ -626,12 +626,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               verificationStatus: 'verified',
                               verificationDate: Date.now()
                             },
-                            subscriptionExpiry: Date.now() + 365 * 24 * 60 * 60 * 1000 // 1 Year
+                            subscriptionExpiry: Date.now() + 365 * 24 * 60 * 60 * 1000
                           });
                           setSelectedSellerDetail(null);
                         }}
-                        disabled={!selectedSellerDetail.verification?.bankAccountVerified}
-                        className={`flex-1 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-200 ${!selectedSellerDetail.verification?.bankAccountVerified ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600'}`}
+                        className="flex-1 bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition"
                       >
                          Approve Node
                       </button>
