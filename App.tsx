@@ -435,13 +435,14 @@ const App: React.FC = () => {
       onOpenCart={() => setIsCartOpen(true)}
       config={siteConfig}
     >
-      <CartDrawer 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
-        cart={cart} 
-        onRemoveItem={handleRemoveFromCart} 
-        onCheckout={({ paymentMethod }) => handleCheckout(paymentMethod)} 
-      />
+      <ErrorBoundary>
+        <CartDrawer 
+          isOpen={isCartOpen} 
+          onClose={() => setIsCartOpen(false)} 
+          cart={cart} 
+          onRemoveItem={handleRemoveFromCart} 
+          onCheckout={({ paymentMethod }) => handleCheckout(paymentMethod)} 
+        />
 
       {currentView === 'home' && (
         <MarketplaceHome 
@@ -540,15 +541,48 @@ const App: React.FC = () => {
       {currentView === 'about' && <AboutUsView config={siteConfig} />}
       {currentView === 'services' && <ServicesView config={siteConfig} />}
 
-      <ChatSupport 
-        currentUser={currentUser} 
-        stores={stores} 
-        globalMessages={allMessages} 
-        onSendMessage={onSendMessage}
-        theme={theme}
-      />
+        <ChatSupport 
+          currentUser={currentUser} 
+          stores={stores} 
+          globalMessages={allMessages} 
+          onSendMessage={onSendMessage}
+          theme={theme}
+        />
+      </ErrorBoundary>
     </Layout>
   );
 };
 
 export default App;
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(_: Error) {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    console.error(error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] border dark:border-slate-800 p-8 text-center shadow-2xl">
+            <h2 className="text-2xl font-black uppercase tracking-widest text-red-600">An error occurred</h2>
+            <p className="text-sm font-bold text-gray-500 mt-2">Please continue browsing while we recover the page.</p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="mt-6 bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest"
+            >
+              Reload Section
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
