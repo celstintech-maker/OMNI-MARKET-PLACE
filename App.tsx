@@ -238,6 +238,14 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    const updated = vendors.find(v => v.id === currentUser.id);
+    if (updated) {
+      setCurrentUser(updated);
+    }
+  }, [vendors]);
+
   const handleNavigate = (view: string) => {
     setCurrentView(view as View);
     if (view !== 'store-page') setSelectedStore(null);
