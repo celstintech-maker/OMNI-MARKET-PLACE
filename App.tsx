@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Product, Store, UserRole, Transaction, CartItem, Message, Feedback, Review, Dispute } from './types';
-import { MOCK_PRODUCTS, MOCK_STORES, COUNTRY_CURRENCY_MAP, Icons, PAYMENT_METHODS } from './constants';
+import { MOCK_PRODUCTS, MOCK_STORES, COUNTRY_CURRENCY_MAP, Icons, PAYMENT_METHODS, CATEGORIES } from './constants';
 import { Layout } from './components/Layout';
 import { MarketplaceHome } from './views/MarketplaceHome';
 import { SellerDashboard } from './views/SellerDashboard';
@@ -14,6 +14,7 @@ import { BuyerDashboard } from './views/BuyerDashboard';
 import { LegalView } from './views/LegalView';
 import { AboutUsView } from './views/AboutUsView';
 import { ServicesView } from './views/ServicesView';
+import { CartDrawer } from './components/CartDrawer';
 
 type View = 'home' | 'seller-dashboard' | 'admin-dashboard' | 'store-page' | 'auth' | 'wishlist' | 'buyer-dashboard' | 'privacy' | 'terms' | 'sourcing' | 'cookies' | 'about' | 'services';
 
@@ -44,6 +45,7 @@ const App: React.FC = () => {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [allMessages, setAllMessages] = useState<Record<string, Message[]>>({});
   const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [categories, setCategories] = useState<string[]>(CATEGORIES);
   
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({
     siteName: "OMNI",
@@ -241,6 +243,12 @@ const App: React.FC = () => {
     if (view !== 'store-page') setSelectedStore(null);
   };
 
+  const handleAddCategory = (category: string) => {
+    if (!categories.includes(category)) {
+      setCategories([...categories, category]);
+    }
+  };
+
   const onLogin = (email: string, role: UserRole, pin: string, storeName?: string) => {
     const existing = vendors.find(v => v.email === email);
     if (existing) {
@@ -318,6 +326,53 @@ const App: React.FC = () => {
     ));
   };
 
+  const handleUpdateTransaction = (transaction: Transaction) => {
+    setTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
+  };
+
+  const handleReplyDispute = (disputeId: string, message: string) => {
+    // In a real app, this would append a message to the dispute thread
+    console.log(`Reply to dispute ${disputeId}: ${message}`);
+  };
+
+  const handleRemoveFromCart = (index: number) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCheckout = () => {
+    // Simple checkout mock
+    alert('Checkout functionality coming soon!');
+    setCart([]);
+    setIsCartOpen(false);
+  };
+
+  const handleToggleVendorStatus = (id: string) => {
+    setVendors(prev => prev.map(v => {
+      if (v.id === id) {
+        // If we are verifying a user, set their subscription expiry to 1 year from now
+        const isVerifying = v.verification?.verificationStatus === 'pending';
+        const newStatus = isVerifying ? 'verified' : v.verification?.verificationStatus;
+        
+        return {
+          ...v,
+          isSuspended: !v.isSuspended,
+          verification: v.verification ? {
+            ...v.verification,
+            verificationStatus: newStatus as any
+          } : undefined,
+          subscriptionExpiry: isVerifying ? Date.now() + (365 * 24 * 60 * 60 * 1000) : v.subscriptionExpiry
+        };
+      }
+      return v;
+    }));
+  };
+
+  const handleDeleteVendor = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this vendor?')) {
+      setVendors(prev => prev.filter(v => v.id !== id));
+    }
+  };
+
   return (
     <Layout 
       user={currentUser} 
@@ -330,11 +385,20 @@ const App: React.FC = () => {
       onOpenCart={() => setIsCartOpen(true)}
       config={siteConfig}
     >
+      <CartDrawer 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        cart={cart} 
+        onRemoveItem={handleRemoveFromCart} 
+        onCheckout={handleCheckout} 
+      />
+
       {currentView === 'home' && (
         <MarketplaceHome 
           config={siteConfig}
           products={products}
           stores={stores}
+          categories={categories}
           onNavigateToStore={(name) => {
             const s = stores.find(st => st.name === name);
             if (s) { setSelectedStore(s); handleNavigate('store-page'); }
@@ -372,6 +436,8 @@ const App: React.FC = () => {
           vendors={vendors}
           stores={stores}
           products={products}
+          categories={categories}
+          onAddCategory={handleAddCategory}
           transactions={transactions}
           disputes={disputes}
           siteConfig={siteConfig}

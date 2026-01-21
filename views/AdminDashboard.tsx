@@ -13,6 +13,8 @@ interface AdminDashboardProps {
   siteConfig: SiteConfig;
   allMessages?: Record<string, Message[]>;
   disputes?: Dispute[];
+  categories?: string[];
+  onAddCategory?: (category: string) => void;
   onUpdateConfig: (config: SiteConfig) => void;
   onToggleVendorStatus: (id: string) => void;
   onDeleteVendor: (id: string) => void;
@@ -257,19 +259,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[2rem] border dark:border-slate-800 space-y-6 max-w-2xl">
-            <h4 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-gray-400">Footer CMS</h4>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[8px] font-black uppercase text-gray-400 block mb-1">Footer Tagline</label>
-                <textarea value={siteConfig.footerText} onChange={e => onUpdateConfig({...siteConfig, footerText: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-xs h-20" />
+              <h4 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-gray-400">Footer CMS</h4>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[8px] font-black uppercase text-gray-400 block mb-1">Footer Tagline</label>
+                  <textarea value={siteConfig.footerText} onChange={e => onUpdateConfig({...siteConfig, footerText: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-xs h-20" />
+                </div>
+                <div>
+                  <label className="text-[8px] font-black uppercase text-gray-400 block mb-1">Copyright Statement (Banner)</label>
+                  <input value={siteConfig.announcement} onChange={e => onUpdateConfig({...siteConfig, announcement: e.target.value})} placeholder="Welcome banner or legal text" className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-xs" />
+                </div>
               </div>
-              <div>
-                <label className="text-[8px] font-black uppercase text-gray-400 block mb-1">Copyright Statement (Banner)</label>
-                <input value={siteConfig.announcement} onChange={e => onUpdateConfig({...siteConfig, announcement: e.target.value})} placeholder="Welcome banner or legal text" className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-xs" />
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[2rem] border dark:border-slate-800 space-y-6 max-w-2xl">
+              <h4 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-gray-400">Global Feed Configuration</h4>
+              <div className="space-y-4">
+                <div>
+                   <label className="text-[8px] font-black uppercase text-gray-400 block mb-2">Active Feeds (Categories)</label>
+                   <div className="flex flex-wrap gap-2 mb-4">
+                      {categories.map(cat => (
+                        <span key={cat} className="bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-slate-700">
+                          {cat}
+                        </span>
+                      ))}
+                   </div>
+                   <div className="flex gap-2">
+                      <input 
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        placeholder="New Feed Name"
+                        className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-xs"
+                      />
+                      <button 
+                        onClick={() => {
+                          if (newCategory.trim() && onAddCategory) {
+                            onAddCategory(newCategory.trim());
+                            setNewCategory('');
+                          }
+                        }}
+                        className="bg-indigo-600 text-white px-6 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition"
+                      >
+                        Add Feed
+                      </button>
+                   </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {activeTab === 'inventory_audit' && (

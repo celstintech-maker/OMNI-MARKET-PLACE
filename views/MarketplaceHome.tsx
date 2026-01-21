@@ -10,6 +10,7 @@ interface MarketplaceHomeProps {
   config: SiteConfig;
   products: Product[];
   stores: Store[];
+  categories: string[];
   onNavigateToStore: (storeName: string) => void;
   wishlist: string[];
   onToggleWishlist: (productId: string) => void;
@@ -57,7 +58,7 @@ const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], cus
 };
 
 export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({ 
-  config, products, stores, onNavigateToStore, wishlist, onToggleWishlist, isLoggedIn, currentUser, onAddToCart, onBecomeSeller 
+  config, products, stores, categories, onNavigateToStore, wishlist, onToggleWishlist, isLoggedIn, currentUser, onAddToCart, onBecomeSeller 
 }) => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,7 +196,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
              <p className="text-gray-500 font-medium text-sm sm:text-base">Real-time products synced from verified nodes.</p>
            </div>
            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-2 px-2">
-             {['All', ...CATEGORIES].map(cat => (
+             {['All', ...categories].map(cat => (
                <button 
                  key={cat} 
                  onClick={() => setActiveCategory(cat)}

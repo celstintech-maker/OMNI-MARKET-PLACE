@@ -35,22 +35,35 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'inventory' | 'messages' | 'ai' | 'finance' | 'feedback' | 'settings' | 'disputes'>('inventory');
   
   const [aiEnabled, setAiEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem(`ai_enabled_${user.id}`);
-    return saved === null ? true : JSON.parse(saved);
+    try {
+      const saved = localStorage.getItem(`ai_enabled_${user.id}`);
+      return saved === null ? true : JSON.parse(saved);
+    } catch {
+      return true;
+    }
   });
   const [aiPrompts, setAiPrompts] = useState<string[]>(() => {
-    const saved = localStorage.getItem(`ai_persona_${user.id}`);
-    return saved ? JSON.parse(saved) : Array(10).fill('');
+    try {
+      const saved = localStorage.getItem(`ai_persona_${user.id}`);
+      return saved ? JSON.parse(saved) : Array(10).fill('');
+    } catch {
+      return Array(10).fill('');
+    }
   });
   const [chatDecay, setChatDecay] = useState<number>(() => {
-    const saved = localStorage.getItem(`ai_decay_${user.id}`);
-    return saved ? JSON.parse(saved) : 5;
+    try {
+      const saved = localStorage.getItem(`ai_decay_${user.id}`);
+      return saved ? JSON.parse(saved) : 5;
+    } catch {
+      return 5;
+    }
   });
   
   const [showAddModal, setShowAddModal] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const productImagesRef = useRef<HTMLInputElement>(null);
   const productVideoRef = useRef<HTMLInputElement>(null);
+  const govtIdInputRef = useRef<HTMLInputElement>(null);
 
   const [newListing, setNewListing] = useState({
     name: '',
@@ -149,6 +162,18 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       reader.onloadend = () => {
         const base64 = reader.result as string;
         setNewListing(prev => ({ ...prev, videoUrl: base64 }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGovtIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setBizForm(prev => ({ ...prev, govtIdUrl: base64 }));
       };
       reader.readAsDataURL(file);
     }
