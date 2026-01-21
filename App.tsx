@@ -294,6 +294,7 @@ const App: React.FC = () => {
 
   const onAddToCart = (item: CartItem) => {
     setCart(prev => [...prev, item]);
+    setIsCartOpen(true);
   };
 
   const onSendMessage = (channelId: string, message: Message) => {
@@ -365,7 +366,7 @@ const App: React.FC = () => {
       commission: (item.price * item.quantity) * siteConfig.commissionRate,
       timestamp: Date.now(),
       currencySymbol: item.currencySymbol || '₦',
-      paymentMethod,
+      paymentMethod: item.paymentMethod || paymentMethod,
       buyerId: currentUser?.id
     }));
     setTransactions(prev => [...prev, ...newTransactions]);

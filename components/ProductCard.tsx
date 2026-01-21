@@ -87,6 +87,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </svg>
             </button>
           )}
+          {onAddToCart && (
+            <button
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onAddToCart({
+                  ...product,
+                  selectedSize: product.sizes?.[0],
+                  selectedImageUrl: product.imageUrl,
+                  quantity: 1
+                });
+              }}
+              className="absolute bottom-4 right-4 p-3 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 active:scale-95 transition"
+              aria-label="Add to cart"
+            >
+              <Icons.Plus />
+            </button>
+          )}
           <div className="absolute bottom-4 left-4">
             <span className="bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-xl tracking-widest shadow-xl">
               {product.category}
