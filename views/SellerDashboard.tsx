@@ -202,13 +202,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const handleSubmitVerification = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check for Bank Account Link before submission
-    if (!user.bankDetails?.accountNumber || !user.bankDetails.bankName) {
-      alert("PROTOCOL ERROR: Active bank account linkage required for identity verification. Please configure in Finance tab.");
-      setActiveTab('finance');
-      return;
-    }
 
     const updatedUser: User = {
       ...user,
@@ -216,7 +209,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         ...bizForm,
         verificationStatus: 'pending',
         productSamples: ['https://picsum.photos/400/300?random=sample1'],
-        bankAccountVerified: true // Auto-verify linkage on submission if details exist
+        bankAccountVerified: !!(user.bankDetails?.accountNumber && user.bankDetails.bankName)
       }
     };
     onUpdateUser(updatedUser);
@@ -284,29 +277,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            <h2 className="text-xl sm:text-3xl font-black mb-2 tracking-tighter uppercase">Identity Verification</h2>
            <p className="text-gray-500 mb-8 text-xs font-medium">Verify your business entity to activate your marketplace node.</p>
            
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
-             <div className="bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
-               <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Bank Linkage</p>
-               <div className="flex items-center justify-between">
-                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${user.bankDetails?.accountNumber && user.bankDetails.bankName ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                   {user.bankDetails?.accountNumber && user.bankDetails.bankName ? 'Linked' : 'Not Linked'}
-                 </span>
-                 <button onClick={() => setActiveTab('finance')} className="text-[10px] font-black uppercase text-indigo-600 underline tracking-widest">Configure</button>
-               </div>
-             </div>
-             <div className="bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
-               <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-2">Government ID</p>
-               <div className="flex items-center justify-between">
-                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${bizForm.govtIdUrl || user.verification?.govtIdUrl ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
-                   {bizForm.govtIdUrl || user.verification?.govtIdUrl ? 'Uploaded' : 'Required'}
-                 </span>
-                 <div className="relative">
-                   <input type="file" ref={govtIdInputRef} onChange={handleGovtIdUpload} className="hidden" accept="image/*,.pdf" />
-                   <button onClick={() => govtIdInputRef.current?.click()} className="text-[10px] font-black uppercase text-indigo-600 underline tracking-widest">Upload</button>
-                 </div>
-               </div>
-             </div>
-           </div>
+           
            
            {user.gracePeriodAllowed && (
              <div className="mb-8 bg-amber-50 dark:bg-amber-900/20 p-6 rounded-2xl border border-amber-200 dark:border-amber-800">
@@ -400,10 +371,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                           onChange={e => setBizForm({...bizForm, taxId: e.target.value})} 
                           className="w-full p-4 rounded-xl outline-none font-bold bg-white dark:bg-slate-900 shadow-sm" 
                         />
-                         <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-800">
-                            <p className="text-[8px] font-bold text-amber-600 uppercase">Bank Link Requirement</p>
-                            <p className="text-[10px] text-gray-500 mt-1">You must configure a valid bank account in the Finance tab before verification can be approved.</p>
-                         </div>
                       </div>
                    </div>
                 </div>

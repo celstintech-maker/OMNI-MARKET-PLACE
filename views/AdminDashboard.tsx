@@ -441,6 +441,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {activeTab === 'chat_logs' && (
+        <div className="space-y-6 animate-slide-up">
+           <div className="bg-white dark:bg-slate-900 rounded-[2rem] border dark:border-slate-800 overflow-hidden shadow-sm">
+             <div className="p-6 border-b dark:border-slate-800 flex items-center justify-between">
+               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600">Surveillance Channels</h4>
+               <span className="text-[8px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full">{stores.length} Stores</span>
+             </div>
+             <div className="divide-y dark:divide-slate-800">
+               {stores.length === 0 ? (
+                 <div className="p-20 text-center opacity-40 uppercase text-[10px] font-black tracking-widest">No stores available</div>
+               ) : (
+                 stores.map(s => (
+                   <div key={s.id} className="p-6 flex items-center justify-between gap-6 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                     <div className="flex items-center gap-4">
+                       <img src={s.bannerUrl} className="w-14 h-14 rounded-xl object-cover" alt="" />
+                       <div>
+                         <p className="font-black text-sm">{s.name}</p>
+                         <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Channel ID: {s.id}</p>
+                       </div>
+                     </div>
+                     <button 
+                       onClick={() => setMonitoredChannel(s.id)}
+                       className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition"
+                     >
+                       Monitor Channel
+                     </button>
+                   </div>
+                 ))
+               )}
+             </div>
+           </div>
+        </div>
+      )}
       {activeTab === 'users' && (
         <div className="space-y-6 animate-slide-up">
            <div className="flex justify-between items-center px-4">
