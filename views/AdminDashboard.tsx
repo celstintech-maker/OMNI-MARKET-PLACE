@@ -24,7 +24,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  vendors: allUsers, stores, products, transactions, siteConfig, allMessages = {}, disputes = [], onUpdateConfig, onToggleVendorStatus, onDeleteVendor, onUpdateUser, onAddUser, onResolveDispute 
+  vendors: allUsers, stores, products, transactions, siteConfig, allMessages = {}, disputes = [], categories = [], onAddCategory, onUpdateConfig, onToggleVendorStatus, onDeleteVendor, onUpdateUser, onAddUser, onResolveDispute 
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'verifications' | 'finance' | 'cms' | 'buyers' | 'chat_logs' | 'inventory_audit' | 'disputes' | 'system'>('users');
   const [selectedSellerDetail, setSelectedSellerDetail] = useState<User | null>(null);
@@ -32,6 +32,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [auditSellerId, setAuditSellerId] = useState<string | null>(null);
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [adminDecisionText, setAdminDecisionText] = useState('');
+  const [newCategory, setNewCategory] = useState('');
   
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
@@ -279,7 +280,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div>
                    <label className="text-[8px] font-black uppercase text-gray-400 block mb-2">Active Feeds (Categories)</label>
                    <div className="flex flex-wrap gap-2 mb-4">
-                      {categories.map(cat => (
+                      {(categories ?? []).map(cat => (
                         <span key={cat} className="bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-slate-700">
                           {cat}
                         </span>
