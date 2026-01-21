@@ -107,7 +107,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                               (Date.now() - user.registrationDate < GRACE_PERIOD_MS) &&
                               !isVerified;
   
-  const hasAccess = isVerified || isGracePeriodActive;
+  const hasAccess = isVerified || isGracePeriodActive || user.verification?.verificationStatus === 'pending';
   const isExpired = user.subscriptionExpiry && Date.now() > user.subscriptionExpiry;
 
   const currency = COUNTRY_CURRENCY_MAP[user.verification?.country || 'Nigeria']?.symbol || '₦';
