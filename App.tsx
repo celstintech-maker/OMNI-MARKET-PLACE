@@ -354,11 +354,25 @@ const App: React.FC = () => {
     setCart(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCheckout = () => {
-    // Simple checkout mock
-    alert('Checkout functionality coming soon!');
+  const handleCheckout = (paymentMethod: string) => {
+    const newTransactions: Transaction[] = cart.map((item) => ({
+      id: `tx-${Date.now()}-${item.id}`,
+      productId: item.id,
+      productName: item.name,
+      sellerId: item.sellerId,
+      storeName: item.storeName,
+      amount: item.price * item.quantity,
+      commission: (item.price * item.quantity) * siteConfig.commissionRate,
+      timestamp: Date.now(),
+      currencySymbol: item.currencySymbol || '₦',
+      paymentMethod,
+      buyerId: currentUser?.id
+    }));
+    setTransactions(prev => [...prev, ...newTransactions]);
+    alert('Order placed successfully!');
     setCart([]);
     setIsCartOpen(false);
+    handleNavigate('buyer-dashboard');
   };
 
   const handleToggleVendorStatus = (id: string) => {
@@ -405,7 +419,7 @@ const App: React.FC = () => {
         onClose={() => setIsCartOpen(false)} 
         cart={cart} 
         onRemoveItem={handleRemoveFromCart} 
-        onCheckout={handleCheckout} 
+        onCheckout={({ paymentMethod }) => handleCheckout(paymentMethod)} 
       />
 
       {currentView === 'home' && (

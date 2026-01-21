@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CartItem } from '../types';
 import { Icons } from '../constants';
 
@@ -7,7 +7,7 @@ interface CartDrawerProps {
   onClose: () => void;
   cart: CartItem[];
   onRemoveItem: (index: number) => void;
-  onCheckout: () => void;
+  onCheckout: (payload: { paymentMethod: string }) => void;
   currencySymbol?: string;
 }
 
@@ -15,6 +15,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen, onClose, cart, onRemoveItem, onCheckout, currencySymbol = '₦' 
 }) => {
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const [paymentMethod, setPaymentMethod] = useState<string>('bank_transfer');
 
   return (
     <>
@@ -66,12 +67,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {cart.length > 0 && (
           <div className="p-6 border-t dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50">
+            <div className="mb-4">
+              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Payment Method</label>
+              <select 
+                value={paymentMethod} 
+                onChange={(e) => setPaymentMethod(e.target.value)} 
+                className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border dark:border-slate-700 text-sm font-bold mt-2"
+              >
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="cash_on_delivery">Cash on Delivery</option>
+              </select>
+            </div>
             <div className="flex justify-between items-center mb-6">
               <span className="font-black uppercase text-gray-400 text-xs tracking-widest">Total Valuation</span>
               <span className="text-2xl font-black text-indigo-600">{currencySymbol}{total.toLocaleString()}</span>
             </div>
             <button 
-              onClick={onCheckout}
+              onClick={() => onCheckout({ paymentMethod })}
               className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
             >
               <span>Secure Checkout</span>
