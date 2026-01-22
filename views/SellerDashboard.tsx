@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Product, User, SellerVerification, BankDetails, Message, UserRole, Transaction, Dispute } from '../types';
+import { Product, User, SellerVerification, BankDetails, Message, UserRole, Transaction } from '../types';
 import { Icons, CATEGORIES, COUNTRY_CURRENCY_MAP, PAYMENT_METHODS, NIGERIA_LOCATIONS, MOCK_STORES } from '../constants';
 import { ChatSupport } from '../components/ChatSupport';
 
@@ -18,52 +18,36 @@ interface SellerDashboardProps {
   user: User;
   products: Product[];
   transactions?: Transaction[];
-  disputes?: Dispute[];
   onAddProduct: (product: Partial<Product>) => void;
   onDeleteProduct: (id: string) => void;
   onUpdateUser: (updatedUser: User) => void;
   unreadCount?: number;
   onClearNotifications?: () => void;
   onUpdateProduct?: (updatedProduct: Product) => void;
-  onReplyDispute?: (disputeId: string, message: Message) => void;
-  onUpdateTransaction?: (transaction: Transaction) => void;
 }
 
 export const SellerDashboard: React.FC<SellerDashboardProps> = ({ 
-  user, products, transactions = [], disputes = [], onAddProduct, onDeleteProduct, onUpdateUser, unreadCount = 0, onClearNotifications, onUpdateProduct, onReplyDispute, onUpdateTransaction 
+  user, products, transactions = [], onAddProduct, onDeleteProduct, onUpdateUser, unreadCount = 0, onClearNotifications, onUpdateProduct 
 }) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'messages' | 'ai' | 'finance' | 'feedback' | 'settings' | 'disputes'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'messages' | 'ai' | 'finance' | 'feedback' | 'settings'>('inventory');
   
   const [aiEnabled, setAiEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(`ai_enabled_${user.id}`);
-      return saved === null ? true : JSON.parse(saved);
-    } catch {
-      return true;
-    }
+    const saved = localStorage.getItem(`ai_enabled_${user.id}`);
+    return saved === null ? true : JSON.parse(saved);
   });
   const [aiPrompts, setAiPrompts] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(`ai_persona_${user.id}`);
-      return saved ? JSON.parse(saved) : Array(10).fill('');
-    } catch {
-      return Array(10).fill('');
-    }
+    const saved = localStorage.getItem(`ai_persona_${user.id}`);
+    return saved ? JSON.parse(saved) : Array(10).fill('');
   });
   const [chatDecay, setChatDecay] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem(`ai_decay_${user.id}`);
-      return saved ? JSON.parse(saved) : 5;
-    } catch {
-      return 5;
-    }
+    const saved = localStorage.getItem(`ai_decay_${user.id}`);
+    return saved ? JSON.parse(saved) : 5;
   });
   
   const [showAddModal, setShowAddModal] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const productImagesRef = useRef<HTMLInputElement>(null);
   const productVideoRef = useRef<HTMLInputElement>(null);
-  const govtIdInputRef = useRef<HTMLInputElement>(null);
 
   const [newListing, setNewListing] = useState({
     name: '',
@@ -101,15 +85,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     : 'N/A';
 
   const isVerified = user.verification?.verificationStatus === 'verified';
-  const GRACE_PERIOD_MS = 14 * 24 * 60 * 60 * 1000;
-  const isGracePeriodActive = user.gracePeriodAllowed && 
-                              user.registrationDate && 
-                              (Date.now() - user.registrationDate < GRACE_PERIOD_MS) &&
-                              !isVerified;
-  
-  const hasAccess = isVerified || isGracePeriodActive || user.verification?.verificationStatus === 'pending';
-  const isExpired = user.subscriptionExpiry && Date.now() > user.subscriptionExpiry;
-
   const currency = COUNTRY_CURRENCY_MAP[user.verification?.country || 'Nigeria']?.symbol || '₦';
 
   const [bizForm, setBizForm] = useState({
@@ -129,7 +104,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       reader.onloadend = () => {
         const base64 = reader.result as string;
         setBizForm(prev => ({ ...prev, profilePictureUrl: base64 }));
-        if (hasAccess) {
+        if (isVerified) {
           onUpdateUser({
             ...user,
             verification: {
@@ -167,18 +142,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     }
   };
 
-  const handleGovtIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setBizForm(prev => ({ ...prev, govtIdUrl: base64 }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSaveAiConfig = () => {
     localStorage.setItem(`ai_persona_${user.id}`, JSON.stringify(aiPrompts));
     localStorage.setItem(`ai_enabled_${user.id}`, JSON.stringify(aiEnabled));
@@ -202,18 +165,15 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const handleSubmitVerification = (e: React.FormEvent) => {
     e.preventDefault();
-
     const updatedUser: User = {
       ...user,
       verification: {
         ...bizForm,
         verificationStatus: 'pending',
-        productSamples: ['https://picsum.photos/400/300?random=sample1'],
-        bankAccountVerified: !!(user.bankDetails?.accountNumber && user.bankDetails.bankName)
+        productSamples: ['https://picsum.photos/400/300?random=sample1']
       }
     };
     onUpdateUser(updatedUser);
-    alert("IDENTITY PROTOCOL INITIATED: Verification submitted. Admin will review and approve.");
   };
 
   const handleCreateListing = () => {
@@ -251,24 +211,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     setShowAddModal(false);
   };
 
-  if (isExpired) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950 p-4">
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[2.5rem] p-12 text-center shadow-2xl border dark:border-slate-800">
-          <div className="w-24 h-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-             <svg className="w-10 h-10 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <h2 className="text-2xl font-black uppercase tracking-tighter mb-4 dark:text-white">Subscription Expired</h2>
-          <p className="text-sm font-bold text-gray-500 mb-8">Your 1-year seller subscription has ended. Please contact support or renew to restore access.</p>
-          <button onClick={() => alert("Renewal flow not implemented")} className="bg-indigo-600 text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition">
-             Renew Subscription
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!hasAccess) {
+  if (!isVerified) {
     const availableStates = GLOBAL_LOCATIONS[bizForm.country] || [];
 
     return (
@@ -277,15 +220,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            <h2 className="text-xl sm:text-3xl font-black mb-2 tracking-tighter uppercase">Identity Verification</h2>
            <p className="text-gray-500 mb-8 text-xs font-medium">Verify your business entity to activate your marketplace node.</p>
            
-           
-           
-           {user.gracePeriodAllowed && (
-             <div className="mb-8 bg-amber-50 dark:bg-amber-900/20 p-6 rounded-2xl border border-amber-200 dark:border-amber-800">
-                <h4 className="text-amber-800 dark:text-amber-400 font-black uppercase text-xs tracking-widest mb-2">Grace Period Expired</h4>
-                <p className="text-amber-600 dark:text-amber-500 text-sm font-bold">Your 2-week grace period has ended. You must complete verification to continue selling.</p>
-             </div>
-           )}
-
            {user.verification?.verificationStatus === 'pending' ? (
              <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border-2 border-dashed border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-black tracking-widest uppercase text-[10px] animate-pulse">
                Verification Protocol Pending Approval
@@ -342,39 +276,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 </div>
 
                 <textarea required placeholder="Full physical location details..." value={bizForm.businessAddress} onChange={e => setBizForm({...bizForm, businessAddress: e.target.value})} className="w-full p-4 rounded-xl outline-none h-24 font-medium bg-white dark:bg-slate-900 shadow-sm" />
-                
-                <div className="space-y-4 pt-4 border-t dark:border-slate-800">
-                   <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">KYC Requirements</h3>
-                   
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest block mb-2">Government ID</label>
-                        <div 
-                          onClick={() => govtIdInputRef.current?.click()}
-                          className="w-full h-32 bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-indigo-200 dark:border-slate-700 flex items-center justify-center cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-800/50 transition"
-                        >
-                          {bizForm.govtIdUrl ? (
-                            <img src={bizForm.govtIdUrl} className="h-full object-contain" />
-                          ) : (
-                            <span className="text-[8px] font-black uppercase text-indigo-400">Upload ID Document</span>
-                          )}
-                        </div>
-                        <input type="file" ref={govtIdInputRef} onChange={handleGovtIdUpload} className="hidden" accept="image/*,application/pdf" />
-                      </div>
-
-                      <div>
-                        <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest block mb-2">Tax ID / EIN / VAT</label>
-                        <input 
-                          required 
-                          placeholder="Tax Identification Number" 
-                          value={bizForm.taxId} 
-                          onChange={e => setBizForm({...bizForm, taxId: e.target.value})} 
-                          className="w-full p-4 rounded-xl outline-none font-bold bg-white dark:bg-slate-900 shadow-sm" 
-                        />
-                      </div>
-                   </div>
-                </div>
-
                 <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl mt-4 active:scale-95">Initialize Verification</button>
              </form>
            )}
@@ -385,17 +286,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in relative pb-10 px-2 sm:px-0">
-      {isGracePeriodActive && (
-        <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-xl flex flex-col sm:flex-row justify-between items-center animate-pulse gap-4">
-           <div>
-              <h3 className="text-sm font-black uppercase tracking-widest mb-1">Grace Period Active</h3>
-              <p className="text-xs opacity-80 font-medium">Your account is active for 2 weeks. Verification required thereafter.</p>
-           </div>
-           <div className="text-[10px] font-black uppercase bg-white/20 px-4 py-2 rounded-lg">
-              {Math.ceil((GRACE_PERIOD_MS - (Date.now() - (user.registrationDate || 0))) / (1000 * 60 * 60 * 24))} Days Left
-           </div>
-        </div>
-      )}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end border-b dark:border-slate-800 pb-4 gap-4">
         <div className="flex items-center gap-6">
            <div className="relative group cursor-pointer" onClick={() => logoInputRef.current?.click()}>
@@ -411,7 +301,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            <div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tighter">{user.storeName} Node</h2>
               <div className="flex gap-4 mt-2 overflow-x-auto no-scrollbar">
-                {['inventory', 'orders', 'finance', 'feedback', 'disputes', 'messages', 'ai', 'settings'].map((tab) => (
+                {['inventory', 'finance', 'feedback', 'messages', 'ai', 'settings'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab as any)} 
@@ -449,89 +339,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             </tbody>
           </table>
           {sellerProducts.length === 0 && <div className="py-20 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest">Inventory Node Empty</div>}
-        </div>
-      )}
-
-      {activeTab === 'orders' && (
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
-           <div className="p-8 border-b dark:border-slate-800">
-             <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Order Fulfillment</h3>
-           </div>
-           <div className="divide-y dark:divide-slate-800">
-             {sellerTransactions.length === 0 ? (
-               <div className="py-20 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest">No active orders</div>
-             ) : (
-               sellerTransactions.map(t => (
-                 <div key={t.id} className="p-8 space-y-4 hover:bg-gray-50 dark:hover:bg-slate-800/30">
-                    <div className="flex items-center justify-between">
-                       <div>
-                          <p className="font-black text-sm">{t.productName}</p>
-                          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Order ID: {t.id}</p>
-                       </div>
-                       <div className="text-right">
-                          <p className="font-black text-indigo-600">{t.currencySymbol}{t.amount.toLocaleString()}</p>
-                          <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest">{new Date(t.timestamp).toLocaleDateString()}</p>
-                       </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border dark:border-slate-800">
-                       <div>
-                          <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-1">Logistics Status</p>
-                          {t.trackingCode ? (
-                            <div>
-                               <p className="font-bold text-xs text-green-600 flex items-center gap-1">
-                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                 Shipped via {t.carrier}
-                               </p>
-                               <p className="text-[10px] font-mono text-gray-500 mt-1">#{t.trackingCode}</p>
-                            </div>
-                          ) : (
-                            <p className="font-bold text-xs text-amber-500 flex items-center gap-1">
-                              <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"/> Pending Shipment
-                            </p>
-                          )}
-                       </div>
-                       <button 
-                         onClick={() => {
-                           setEditingTransaction(t);
-                           setTrackingForm({ code: t.trackingCode || '', carrier: t.carrier || '', url: t.trackingUrl || '' });
-                         }}
-                         className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-100 transition"
-                       >
-                         {t.trackingCode ? 'Update Tracking' : 'Add Tracking'}
-                       </button>
-                    </div>
-                 </div>
-               ))
-             )}
-           </div>
-        </div>
-      )}
-
-      {/* Tracking Modal */}
-      {editingTransaction && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-8 shadow-2xl relative">
-              <button onClick={() => setEditingTransaction(null)} className="absolute top-8 right-8 text-gray-400 hover:text-red-500">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-              <h3 className="text-xl font-black tracking-tighter uppercase mb-6">Logistics Sync</h3>
-              <form onSubmit={handleSaveTracking} className="space-y-6">
-                 <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-2">Carrier Name</label>
-                    <input required value={trackingForm.carrier} onChange={e => setTrackingForm({...trackingForm, carrier: e.target.value})} placeholder="DHL, FedEx, UPS..." className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-sm"/>
-                 </div>
-                 <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-2">Tracking Number</label>
-                    <input required value={trackingForm.code} onChange={e => setTrackingForm({...trackingForm, code: e.target.value})} placeholder="Tracking Code" className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-sm font-mono"/>
-                 </div>
-                 <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-2">Tracking URL (Optional)</label>
-                    <input value={trackingForm.url} onChange={e => setTrackingForm({...trackingForm, url: e.target.value})} placeholder="https://..." className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-sm"/>
-                 </div>
-                 <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl">Update Status</button>
-              </form>
-           </div>
         </div>
       )}
 
@@ -675,7 +482,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                  >
                    <Icons.Camera />
                  </button>
-                 <input type="file" ref={logoInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" />
                </div>
                
                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -732,73 +538,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                     )}
                  </div>
               </div>
-           </div>
-        </div>
-      )}
-
-      {activeTab === 'disputes' && (
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
-           <div className="p-8 border-b dark:border-slate-800">
-             <h3 className="text-[10px] font-black uppercase tracking-widest text-red-500">Dispute Resolution Center</h3>
-           </div>
-           <div className="divide-y dark:divide-slate-800">
-             {disputes.filter(d => d.sellerId === user.id).length === 0 ? (
-               <div className="py-20 text-center text-gray-400 uppercase text-[10px] font-black tracking-widest">No active disputes</div>
-             ) : (
-               disputes.filter(d => d.sellerId === user.id).map(d => (
-                 <div key={d.id} className="p-8 hover:bg-gray-50 dark:hover:bg-slate-800/30 transition">
-                    <div className="flex justify-between items-start mb-4">
-                       <div>
-                          <p className="font-black text-sm text-red-600">{d.reason}</p>
-                          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Case ID: {d.id}</p>
-                       </div>
-                       <div className="text-right">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${d.status === 'open' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                            {d.status}
-                          </span>
-                          <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest mt-1">{new Date(d.createdAt).toLocaleDateString()}</p>
-                       </div>
-                    </div>
-                    
-                    <div className="bg-gray-50 dark:bg-slate-800/50 p-6 rounded-2xl border dark:border-slate-800 mb-4 max-h-60 overflow-y-auto">
-                       <div className="space-y-4">
-                         {d.messages.map(msg => (
-                           <div key={msg.id} className={`flex flex-col ${msg.senderId === user.id ? 'items-end' : 'items-start'}`}>
-                             <div className={`max-w-[80%] p-3 rounded-xl text-xs font-medium ${msg.senderId === user.id ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-900 border dark:border-slate-700'}`}>
-                               {msg.text}
-                             </div>
-                             <span className="text-[8px] font-black uppercase text-gray-300 mt-1">{msg.senderName} • {new Date(msg.timestamp).toLocaleTimeString()}</span>
-                           </div>
-                         ))}
-                       </div>
-                    </div>
-
-                    {d.status === 'open' && (
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!onReplyDispute || !replyText.trim()) return;
-                        onReplyDispute(d.id, {
-                          id: `msg-${Date.now()}`,
-                          senderId: user.id,
-                          senderName: user.storeName || user.name,
-                          text: replyText,
-                          timestamp: Date.now()
-                        });
-                        setReplyText('');
-                      }} className="flex gap-4">
-                         <input 
-                           value={activeDisputeId === d.id ? replyText : ''}
-                           onChange={e => { setActiveDisputeId(d.id); setReplyText(e.target.value); }}
-                           onFocus={() => setActiveDisputeId(d.id)}
-                           placeholder="Type your reply to the buyer..."
-                           className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-xs"
-                         />
-                         <button type="submit" className="bg-indigo-600 text-white px-6 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-indigo-700 transition">Reply</button>
-                      </form>
-                    )}
-                 </div>
-               ))
-             )}
            </div>
         </div>
       )}

@@ -85,82 +85,12 @@ export const MOCK_PRODUCTS = [
     imageUrl: 'https://picsum.photos/400/400?random=3',
     storeName: 'StyleCo',
     paymentMethod: 'bank_transfer'
-  },
-  {
-    id: 'p3',
-    sellerId: 's3',
-    name: 'Modern Coffee Table',
-    description: 'A stylish coffee table made from reclaimed wood.',
-    price: 150.00,
-    category: 'Home',
-    imageUrl: 'https://picsum.photos/400/400?random=4',
-    storeName: 'HomeDecor',
-    paymentMethod: 'stripe'
-  },
-  {
-    id: 'p4',
-    sellerId: 's4',
-    name: 'Organic Face Serum',
-    description: 'Rejuvenating face serum with vitamin C and hyaluronic acid.',
-    price: 45.00,
-    category: 'Beauty',
-    imageUrl: 'https://picsum.photos/400/400?random=5',
-    storeName: 'GlowUp',
-    paymentMethod: 'paypal'
-  },
-  {
-    id: 'p5',
-    sellerId: 's1',
-    name: 'Smart Watch Series 5',
-    description: 'Track your fitness and stay connected.',
-    price: 399.00,
-    category: 'Electronics',
-    imageUrl: 'https://picsum.photos/400/400?random=6',
-    storeName: 'TechHub',
-    paymentMethod: 'stripe'
-  },
-  {
-    id: 'p6',
-    sellerId: 's5',
-    name: 'The Great Gatsby',
-    description: 'Classic novel by F. Scott Fitzgerald.',
-    price: 15.00,
-    category: 'Books',
-    imageUrl: 'https://picsum.photos/400/400?random=7',
-    storeName: 'BookNook',
-    paymentMethod: 'stripe'
-  },
-  {
-    id: 'p7',
-    sellerId: 's6',
-    name: 'Building Blocks Set',
-    description: 'Creative building blocks for kids of all ages.',
-    price: 29.99,
-    category: 'Toys',
-    imageUrl: 'https://picsum.photos/400/400?random=8',
-    storeName: 'PlayTime',
-    paymentMethod: 'stripe'
-  },
-  {
-    id: 'p8',
-    sellerId: 's2',
-    name: 'Denim Jacket',
-    description: 'Classic vintage style denim jacket.',
-    price: 89.99,
-    category: 'Fashion',
-    imageUrl: 'https://picsum.photos/400/400?random=9',
-    storeName: 'StyleCo',
-    paymentMethod: 'bank_transfer'
   }
 ];
 
 export const MOCK_STORES = [
   { id: 'st1', sellerId: 's1', name: 'TechHub', description: 'Gadgets for the future.', bannerUrl: 'https://picsum.photos/1200/400?random=10', status: 'active' },
-  { id: 'st2', sellerId: 's2', name: 'StyleCo', description: 'Timeless fashion for everyone.', bannerUrl: 'https://picsum.photos/1200/400?random=11', status: 'active' },
-  { id: 'st3', sellerId: 's3', name: 'HomeDecor', description: 'Make your home beautiful.', bannerUrl: 'https://picsum.photos/1200/400?random=12', status: 'active' },
-  { id: 'st4', sellerId: 's4', name: 'GlowUp', description: 'Beauty products for glowing skin.', bannerUrl: 'https://picsum.photos/1200/400?random=13', status: 'active' },
-  { id: 'st5', sellerId: 's5', name: 'BookNook', description: 'Your favorite stories.', bannerUrl: 'https://picsum.photos/1200/400?random=14', status: 'active' },
-  { id: 'st6', sellerId: 's6', name: 'PlayTime', description: 'Fun for everyone.', bannerUrl: 'https://picsum.photos/1200/400?random=15', status: 'active' }
+  { id: 'st2', sellerId: 's2', name: 'StyleCo', description: 'Timeless fashion for everyone.', bannerUrl: 'https://picsum.photos/1200/400?random=11', status: 'active' }
 ];
 
 export const Icons = {

@@ -21,10 +21,6 @@ export interface SellerVerification {
   profilePictureUrl: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
   productSamples: string[];
-  govtIdUrl?: string;
-  taxId?: string;
-  bankAccountVerified?: boolean;
-  verificationDate?: number;
 }
 
 export interface User {
@@ -41,34 +37,7 @@ export interface User {
   paymentMethod?: string;
   bankDetails?: BankDetails;
   verification?: SellerVerification;
-  passwordHint?: string;
-  registrationDate?: number;
-  subscriptionExpiry?: number;
-  createdByAdmin?: boolean;
-  gracePeriodAllowed?: boolean;
-}
-
-export interface Product {
-  id: string;
-  productId: string;
-  userId: string;
-  userName: string;
-  rating: number;
-  comment: string;
-  date: number;
-  verifiedPurchase: boolean;
-}
-
-export interface Dispute {
-  id: string;
-  transactionId: string;
-  buyerId: string;
-  sellerId: string;
-  status: 'open' | 'resolved' | 'closed';
-  reason: string;
-  adminDecision?: string;
-  createdAt: number;
-  messages: Message[];
+  passwordHint?: string; 
 }
 
 export interface Product {
@@ -87,7 +56,6 @@ export interface Product {
   currencySymbol?: string; 
   paymentMethod?: string; 
   location?: string;
-  reviews?: Review[];
 }
 
 export interface CartItem extends Product {
@@ -132,9 +100,5 @@ export interface Transaction {
   currencySymbol: string;
   paymentMethod: string;
   bankDetails?: BankDetails;
-  buyerId?: string;
   feedback?: Feedback;
-  trackingCode?: string;
-  carrier?: string;
-  trackingUrl?: string;
 }

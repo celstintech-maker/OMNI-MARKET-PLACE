@@ -1,54 +1,19 @@
 
 import React, { useState } from 'react';
-import { User, Transaction, Feedback, Dispute } from '../types';
+import { User, Transaction, Feedback } from '../types';
 
 interface BuyerDashboardProps {
   user: User;
   transactions: Transaction[];
-  disputes: Dispute[];
   onFeedbackSubmit?: (transactionId: string, feedback: Feedback) => void;
-  onFileDispute?: (dispute: Dispute) => void;
 }
 
-export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactions, disputes, onFeedbackSubmit, onFileDispute }) => {
+export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactions, onFeedbackSubmit }) => {
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
-  const [activeDisputeId, setActiveDisputeId] = useState<string | null>(null);
-  const [disputeReason, setDisputeReason] = useState('Item Not Received');
-  const [disputeDescription, setDisputeDescription] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
   const myPurchases = transactions;
-
-  const handleDispute = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeDisputeId || !onFileDispute) return;
-
-    const transaction = transactions.find(t => t.id === activeDisputeId);
-    if (!transaction) return;
-
-    onFileDispute({
-      id: `case-${Date.now()}`,
-      transactionId: activeDisputeId,
-      buyerId: user.id,
-      sellerId: transaction.sellerId,
-      status: 'open',
-      reason: disputeReason,
-      createdAt: Date.now(),
-      messages: [{
-        id: `msg-${Date.now()}`,
-        senderId: user.id,
-        senderName: user.name,
-        text: disputeDescription,
-        timestamp: Date.now()
-      }]
-    });
-
-    setActiveDisputeId(null);
-    setDisputeDescription('');
-    setDisputeReason('Item Not Received');
-    alert("DISPUTE FILED: Case opened with global resolution center.");
-  };
 
   const handleFeedback = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,32 +71,16 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
                     </div>
                     
                     {!t.feedback ? (
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => setActiveFeedbackId(t.id)}
-                          className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition"
-                        >
-                          Rate Order
-                        </button>
-                        <button 
-                          onClick={() => setActiveDisputeId(t.id)}
-                          className="text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-100 transition"
-                        >
-                          Report Issue
-                        </button>
-                      </div>
+                      <button 
+                        onClick={() => setActiveFeedbackId(t.id)}
+                        className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition"
+                      >
+                        Rate Order
+                      </button>
                     ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 pt-2 border-t dark:border-slate-700/50">
-                           <span className="text-amber-500 font-bold text-xs">{t.feedback.rating} ★</span>
-                           <p className="text-xs italic text-gray-500 line-clamp-1">"{t.feedback.comment}"</p>
-                        </div>
-                        <button 
-                          onClick={() => setActiveDisputeId(t.id)}
-                          className="text-[8px] font-black uppercase tracking-widest text-red-400 hover:text-red-600 transition"
-                        >
-                          Report Issue with Order
-                        </button>
+                      <div className="flex items-center gap-2 pt-2 border-t dark:border-slate-700/50">
+                         <span className="text-amber-500 font-bold text-xs">{t.feedback.rating} ★</span>
+                         <p className="text-xs italic text-gray-500 line-clamp-1">"{t.feedback.comment}"</p>
                       </div>
                     )}
                   </div>
@@ -139,39 +88,6 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
               </div>
             )}
           </div>
-
-          {/* Active Disputes Section */}
-          {disputes.filter(d => d.buyerId === user.id).length > 0 && (
-            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border dark:border-slate-800 overflow-hidden shadow-sm">
-              <div className="p-8 border-b dark:border-slate-800">
-                 <h3 className="text-[10px] font-black uppercase tracking-widest text-red-500">Active Disputes</h3>
-              </div>
-              <div className="divide-y dark:divide-slate-800">
-                {disputes.filter(d => d.buyerId === user.id).map(d => (
-                  <div key={d.id} className="p-8 hover:bg-gray-50 dark:hover:bg-slate-800/30 transition">
-                    <div className="flex justify-between items-start mb-4">
-                       <div>
-                          <p className="font-black text-sm text-red-600">{d.reason}</p>
-                          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Case ID: {d.id}</p>
-                       </div>
-                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${d.status === 'open' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                         {d.status}
-                       </span>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border dark:border-slate-800 text-xs font-medium text-gray-600 dark:text-gray-300">
-                       <p className="line-clamp-2">Latest: {d.messages[d.messages.length - 1]?.text}</p>
-                    </div>
-                    {d.adminDecision && (
-                       <div className="mt-4 p-4 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800 rounded-xl">
-                          <p className="text-[8px] font-black uppercase text-indigo-500 tracking-widest mb-1">Admin Resolution</p>
-                          <p className="font-bold text-xs text-indigo-800 dark:text-indigo-200">{d.adminDecision}</p>
-                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-6">
@@ -237,48 +153,6 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
                  </div>
 
                  <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl">Sync Feedback</button>
-              </form>
-           </div>
-        </div>
-      )}
-
-      {/* Dispute Modal */}
-      {activeDisputeId && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-8 sm:p-12 shadow-2xl relative">
-              <button onClick={() => setActiveDisputeId(null)} className="absolute top-8 right-8 text-gray-400 hover:text-red-500">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-              <h3 className="text-2xl font-black tracking-tighter uppercase mb-6 text-red-600">File a Dispute</h3>
-              <p className="text-gray-500 text-sm mb-6">Our admins will act as mediators if this cannot be resolved within 48 hours.</p>
-              
-              <form onSubmit={handleDispute} className="space-y-6">
-                 <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Reason for Dispute</label>
-                    <select 
-                      value={disputeReason}
-                      onChange={e => setDisputeReason(e.target.value)}
-                      className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl outline-none font-bold text-sm border-2 border-transparent focus:border-indigo-600 transition"
-                    >
-                      <option value="Item Not Received">Item Not Received</option>
-                      <option value="Item Not As Described">Item Not As Described</option>
-                      <option value="Damaged Item">Damaged Item</option>
-                      <option value="Other">Other</option>
-                    </select>
-                 </div>
-
-                 <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Detailed Description</label>
-                    <textarea 
-                      required
-                      value={disputeDescription}
-                      onChange={e => setDisputeDescription(e.target.value)}
-                      placeholder="Please describe the issue in detail..."
-                      className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl outline-none font-bold text-sm h-32 border-2 border-transparent focus:border-indigo-600 transition"
-                    />
-                 </div>
-
-                 <button type="submit" className="w-full bg-red-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl">Submit to Admin</button>
               </form>
            </div>
         </div>

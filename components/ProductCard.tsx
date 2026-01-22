@@ -87,23 +87,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </svg>
             </button>
           )}
-          {onAddToCart && (
-            <button
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                onAddToCart({
-                  ...product,
-                  selectedSize: product.sizes?.[0],
-                  selectedImageUrl: product.imageUrl,
-                  quantity: 1
-                });
-              }}
-              className="absolute bottom-4 right-4 p-3 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 active:scale-95 transition"
-              aria-label="Add to cart"
-            >
-              <Icons.Plus />
-            </button>
-          )}
           <div className="absolute bottom-4 left-4">
             <span className="bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-xl tracking-widest shadow-xl">
               {product.category}
@@ -183,11 +166,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       <span className="bg-slate-900 dark:bg-slate-700 text-white text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em]">Verified Node</span>
                     </div>
                     <h3 className="text-3xl sm:text-4xl font-black tracking-tighter leading-none dark:text-white">{product.name}</h3>
-                  <div className="flex items-center gap-2 text-gray-400 group cursor-pointer" onClick={() => onClickStore(product.storeName)}>
-                    <Icons.Map />
-                    <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-600 transition">Origin: {product.location || 'Global Hub'}</p>
+                    <div className="flex items-center gap-2 text-gray-400 group cursor-pointer" onClick={() => onClickStore(product.storeName)}>
+                      <Icons.Map />
+                      <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-600 transition">Origin: {product.location || 'Global Hub'}</p>
+                    </div>
                   </div>
-                </div>
 
                   <p className="text-gray-500 dark:text-slate-400 text-sm font-medium leading-relaxed italic border-l-4 border-indigo-600 pl-6">"{product.description}"</p>
 
@@ -265,7 +248,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t dark:border-slate-800">
+                  <div className="pt-4">
                      <p className="text-[9px] font-black uppercase text-gray-400 tracking-[0.3em] mb-4">Merchant Node Details</p>
                      <div className="flex items-center gap-4 bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
                         <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xs">{product.storeName[0]}</div>
@@ -273,46 +256,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                            <p className="text-xs font-black dark:text-white">{product.storeName}</p>
                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Verified Multi-Vendor Node</p>
                         </div>
-                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border dark:border-slate-700">
-                        <span className="text-[9px] font-black uppercase text-gray-400">Port: {payMethod?.icon} {payMethod?.name}</span>
-                     </div>
-                     </div>
-                     <div className="mt-4 flex justify-end">
-                       <button onClick={() => onClickStore(product.storeName)} className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">
-                         Visit Store
-                       </button>
+                        <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border dark:border-slate-700">
+                           <span className="text-[9px] font-black uppercase text-gray-400">Port: {payMethod?.icon} {payMethod?.name}</span>
+                        </div>
                      </div>
                   </div>
-
-                  {product.reviews && product.reviews.length > 0 && (
-                    <div className="pt-8 border-t dark:border-slate-800">
-                      <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Verified Node Feedback</h4>
-                      <div className="space-y-4">
-                        {product.reviews.map(review => (
-                          <div key={review.id} className="bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs dark:text-white">{review.userName}</span>
-                                {review.verifiedPurchase && (
-                                  <span className="bg-green-100 text-green-600 text-[8px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                    Verified Purchase
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex text-amber-500 text-xs">
-                                {Array(5).fill(0).map((_, i) => (
-                                  <span key={i}>{i < review.rating ? '★' : '☆'}</span>
-                                ))}
-                              </div>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium italic">"{review.comment}"</p>
-                            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">{new Date(review.date).toLocaleDateString()}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                </div>
             </div>
           </div>
