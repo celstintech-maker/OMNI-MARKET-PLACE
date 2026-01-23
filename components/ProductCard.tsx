@@ -171,7 +171,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
                       <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em]">{product.category}</span>
-                      <span className="bg-slate-900 dark:bg-slate-700 text-white text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em]">Verified Node</span>
+                      <span className="bg-slate-900 dark:bg-slate-700 text-white text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em]">Verified Store</span>
                     </div>
                     <h3 className="text-3xl sm:text-4xl font-black tracking-tighter leading-none dark:text-white">{product.name}</h3>
                   </div>

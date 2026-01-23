@@ -7,7 +7,7 @@ export const ServicesView: React.FC<{ config: SiteConfig }> = ({ config }) => {
     {
       title: "AI Sales Agents",
       icon: "🤖",
-      desc: "Every vendor node is equipped with a custom-trained Gemini AI agent that handles inquiries, provides product insights, and manages multi-language support 24/7.",
+      desc: "Every vendor store is equipped with a custom-trained Gemini AI agent that handles inquiries, provides product insights, and manages multi-language support 24/7.",
       tag: "Intelligence"
     },
     {
@@ -17,7 +17,7 @@ export const ServicesView: React.FC<{ config: SiteConfig }> = ({ config }) => {
       tag: "Finance"
     },
     {
-      title: "Node Analytics",
+      title: "Store Analytics",
       icon: "📊",
       desc: "Sellers gain access to high-fidelity dashboards tracking gross transaction volume, inventory velocity, and global performance metrics.",
       tag: "Analytics"
@@ -67,7 +67,7 @@ export const ServicesView: React.FC<{ config: SiteConfig }> = ({ config }) => {
       </div>
 
       <div className="bg-indigo-600 rounded-[3.5rem] p-10 sm:p-20 text-center text-white space-y-8 shadow-2xl">
-        <h2 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase">READY TO DEPLOY YOUR NODE?</h2>
+        <h2 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase">READY TO DEPLOY YOUR STORE?</h2>
         <p className="text-indigo-100 font-medium max-w-xl mx-auto">Join the {config.siteName} network today and start selling to a global audience with AI-powered support and secure settlements.</p>
         <button 
           onClick={() => { window.location.hash = '#/auth'; }}

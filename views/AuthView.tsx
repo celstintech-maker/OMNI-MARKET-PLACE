@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserRole, Store } from '../types';
 
 interface AuthViewProps {
   stores: Store[];
-  onLogin: (email: string, role: UserRole, pin: string, storeName?: string, hint?: string) => void;
+  onLogin: (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string) => void;
   initialIsRegister?: boolean;
   initialRole?: UserRole;
 }
@@ -16,7 +17,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
   const [hint, setHint] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [storeName, setStoreName] = useState('');
-  const [selectedSellerId, setSelectedSellerId] = useState('');
+  const [referralCode, setReferralCode] = useState('');
 
   useEffect(() => {
     setIsRegister(initialIsRegister);
@@ -29,7 +30,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
       alert("PIN must be at least 4 digits.");
       return;
     }
-    onLogin(email, role, pin, role === UserRole.SELLER ? storeName : undefined, hint);
+    onLogin(email, role, pin, role === UserRole.SELLER ? storeName : undefined, hint, referralCode);
   };
 
   return (
@@ -128,17 +129,29 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
         )}
 
         {isRegister && role === UserRole.SELLER && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Store Name</label>
-            <input 
-              type="text" 
-              required 
-              className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
-              placeholder="My Store"
-              value={storeName}
-              onChange={e => setStoreName(e.target.value)}
-            />
-          </div>
+          <>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Store Name</label>
+              <input 
+                type="text" 
+                required 
+                className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
+                placeholder="My Store"
+                value={storeName}
+                onChange={e => setStoreName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Referral ID (Optional)</label>
+              <input 
+                type="text" 
+                className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
+                placeholder="Enter Staff ID if recruited"
+                value={referralCode}
+                onChange={e => setReferralCode(e.target.value)}
+              />
+            </div>
+          </>
         )}
 
         <button 

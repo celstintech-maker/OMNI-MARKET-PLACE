@@ -41,7 +41,7 @@ export const PurchaseSuccessView: React.FC<PurchaseSuccessViewProps> = ({ transa
              <div key={t.id} className="flex justify-between items-center border-b dark:border-slate-800 pb-4 last:border-0 last:pb-0">
                 <div>
                    <p className="font-black text-sm uppercase">{t.productName}</p>
-                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Node: {t.storeName}</p>
+                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Store: {t.storeName}</p>
                 </div>
                 <p className="font-black text-indigo-600">₦{t.amount.toLocaleString()}</p>
              </div>
@@ -55,8 +55,8 @@ export const PurchaseSuccessView: React.FC<PurchaseSuccessViewProps> = ({ transa
            <h4 className="text-xs font-black uppercase mb-2">{deliveryType === 'home_delivery' ? '🚚 Logistics Dispatch Protocol' : '🏪 Instant Pick-up Protocol'}</h4>
            <p className="text-[10px] font-medium leading-relaxed text-gray-500">
              {deliveryType === 'home_delivery' 
-               ? "Our logistics nodes have been notified. Your assets will be dispatched to your fulfillment address within 24-48 hours. Watch for a communication sync on your provided phone line."
-               : "Authorization code has been sent to your dashboard. Visit the vendor's physical node with your ID for instant asset retrieval."}
+               ? "Our logistics partners have been notified. Your assets will be dispatched to your fulfillment address within 24-48 hours. Watch for a communication sync on your provided phone line."
+               : "Authorization code has been sent to your dashboard. Visit the vendor's physical store with your ID for instant asset retrieval."}
            </p>
         </div>
       </div>

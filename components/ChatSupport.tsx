@@ -125,86 +125,104 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
     return (
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 right-4 sm:bottom-28 sm:right-6 bg-indigo-600 text-white p-4 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.4)] hover:scale-105 active:scale-95 transition-all z-[150] flex items-center gap-3"
+        className="fixed bottom-24 right-4 sm:bottom-28 sm:right-6 bg-indigo-600 text-white p-4 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.4)] hover:scale-105 active:scale-95 transition-all z-[150] flex items-center gap-3 animate-slide-up"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-        <span className="font-black uppercase text-[10px] tracking-widest">Support</span>
+        <span className="font-black uppercase text-[10px] tracking-widest hidden sm:inline">Support</span>
       </button>
     );
   }
 
   return (
     <div className={`
-      ${isEmbedded ? 'w-full h-full' : 'fixed inset-0 sm:inset-auto sm:bottom-28 sm:right-6 sm:w-96 sm:h-[600px] z-[200]'} 
-      bg-white dark:bg-slate-900 flex flex-col sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up
+      ${isEmbedded ? 'w-full h-full' : 'fixed inset-0 h-[100dvh] sm:h-[600px] sm:inset-auto sm:bottom-28 sm:right-6 sm:w-96 z-[500]'} 
+      bg-white dark:bg-slate-900 flex flex-col sm:rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up font-sans border-0 sm:border dark:border-slate-800
     `}>
-      <div className="p-5 sm:p-6 bg-indigo-600 text-white flex justify-between items-center shrink-0">
+      <div className="p-4 sm:p-5 bg-indigo-600 text-white flex justify-between items-center shrink-0 shadow-lg relative z-10">
         <div className="flex items-center gap-3">
           {selectedChannel && (
-            <button onClick={() => setSelectedChannel(null)} className="p-2 hover:bg-white/20 rounded-xl transition">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+            <button onClick={() => setSelectedChannel(null)} className="p-2 hover:bg-white/20 rounded-xl transition -ml-2">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
             </button>
           )}
           <div>
-            <h3 className="font-black text-sm uppercase tracking-tight leading-none">{selectedChannel ? activeChannelName : 'Support Hub'}</h3>
-            <p className="text-[8px] uppercase tracking-widest text-indigo-200 mt-1">Ecosystem Node Active</p>
+            <h3 className="font-black text-sm sm:text-base uppercase tracking-tight leading-none truncate max-w-[200px]">{selectedChannel ? activeChannelName : 'Support Hub'}</h3>
+            <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-indigo-200 mt-1 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+              Live Network
+            </p>
           </div>
         </div>
         {!isEmbedded && (
-          <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/20 rounded-xl transition">
+          <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/20 rounded-xl transition -mr-2">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         )}
       </div>
 
       {!selectedChannel ? (
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-slate-950 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar">
-           <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm mb-2">
-             <input 
-               type="text"
-               value={channelSearchQuery}
-               onChange={(e) => setChannelSearchQuery(e.target.value)}
-               placeholder="Search support nodes..."
-               className="w-full bg-transparent text-sm font-bold outline-none dark:text-white"
-             />
+        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-slate-950 overflow-y-auto p-4 space-y-4 no-scrollbar">
+           <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 sticky top-0 z-10">
+             <div className="flex items-center gap-3 text-gray-400">
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+               <input 
+                 type="text"
+                 value={channelSearchQuery}
+                 onChange={(e) => setChannelSearchQuery(e.target.value)}
+                 placeholder="Search nodes..."
+                 className="w-full bg-transparent text-sm font-bold outline-none dark:text-white placeholder:text-gray-400"
+               />
+             </div>
            </div>
            
            <button 
               onClick={() => setSelectedChannel('system')}
-              className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 border-transparent hover:border-indigo-600 transition-all text-left"
+              className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-[2rem] border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm group"
             >
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               </div>
               <div>
-                <p className="font-black text-xs uppercase">Global Support</p>
-                <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-widest">Network Admin AI</p>
+                <p className="font-black text-sm uppercase dark:text-white">Global Support</p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Network Admin AI</p>
               </div>
             </button>
 
-            <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-gray-400 pt-4">Marketplace Nodes</h4>
-            {filteredStores.map(store => (
-              <button 
-                key={store.id}
-                onClick={() => setSelectedChannel(store.id)}
-                className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl hover:border-indigo-600 border-2 border-transparent transition-all text-left"
-              >
-                <img src={store.bannerUrl} className="w-12 h-12 rounded-2xl object-cover" alt="" />
-                <div>
-                  <p className="font-black text-xs uppercase">{store.name}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Verified Vendor</p>
-                </div>
-              </button>
-            ))}
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 pl-2">Marketplace Nodes</h4>
+              {filteredStores.length === 0 ? (
+                <div className="text-center py-10 text-gray-300 font-bold text-xs uppercase">No active nodes found</div>
+              ) : (
+                filteredStores.map(store => (
+                  <button 
+                    key={store.id}
+                    onClick={() => setSelectedChannel(store.id)}
+                    className="w-full flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm"
+                  >
+                    <img src={store.bannerUrl} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                    <div className="min-w-0">
+                      <p className="font-black text-xs uppercase truncate dark:text-white">{store.name}</p>
+                      <p className="text-[8px] text-indigo-500 font-bold uppercase tracking-widest">Verified Vendor</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
         </div>
       ) : (
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-gray-50 dark:bg-slate-950 no-scrollbar">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50 dark:bg-slate-950 no-scrollbar">
+            {messages.length === 0 && (
+              <div className="text-center py-20 opacity-50">
+                <p className="text-4xl mb-4">💬</p>
+                <p className="text-[10px] font-black uppercase tracking-widest">Start Transmitting</p>
+              </div>
+            )}
             {messages.map(msg => (
               <div key={msg.id} className={`flex flex-col ${msg.senderId === activeUser.id ? 'items-end' : 'items-start'}`}>
                 <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest mb-1.5 px-1">{msg.senderName}</span>
                 <div className={`
-                  max-w-[85%] px-5 py-3.5 rounded-2xl text-[13px] font-medium leading-relaxed
+                  max-w-[85%] px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed
                   ${msg.senderId === activeUser.id 
                     ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg' 
                     : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
@@ -215,7 +233,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
               </div>
             ))}
             {isThinking && (
-              <div className="flex gap-2 p-2 animate-pulse">
+              <div className="flex gap-2 p-2">
                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
@@ -223,20 +241,20 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
             )}
           </div>
 
-          <form onSubmit={handleFormSubmit} className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex gap-3 shrink-0">
+          <form onSubmit={handleFormSubmit} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex gap-2 shrink-0 pb-6 sm:pb-4">
             <input 
               type="text" 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your inquiry..."
-              className="flex-1 bg-gray-100 dark:bg-slate-800 dark:text-white rounded-2xl px-5 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all"
+              className="flex-1 bg-gray-100 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-3 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all font-medium"
             />
             <button 
               type="submit" 
               disabled={!input.trim()}
-              className="bg-indigo-600 text-white p-4 rounded-2xl disabled:opacity-50 active:scale-90 transition"
+              className="bg-indigo-600 text-white p-3 sm:p-4 rounded-xl disabled:opacity-50 active:scale-90 transition shadow-lg"
             >
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
           </form>
         </>

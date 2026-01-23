@@ -17,6 +17,9 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
   const [countdown, setCountdown] = useState(5);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('home_delivery');
   
+  // Local state to track selected payment methods per vendor group
+  const [selectedMethods, setSelectedMethods] = useState<Record<string, string>>({});
+
   const [billing, setBilling] = useState<BillingDetails>({
     fullName: '',
     email: '',
@@ -25,6 +28,24 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
     city: '',
     state: ''
   });
+
+  const vendorGroups = useMemo(() => {
+    const groups: Record<string, { storeName: string; items: CartItem[]; total: number; sellerId: string; paymentMethod: string }> = {};
+    cart.forEach(item => {
+      if (!groups[item.sellerId]) {
+        groups[item.sellerId] = { 
+          storeName: item.storeName, 
+          items: [], 
+          total: 0, 
+          sellerId: item.sellerId,
+          paymentMethod: selectedMethods[item.sellerId] || item.paymentMethod || 'bank_transfer'
+        };
+      }
+      groups[item.sellerId].items.push(item);
+      groups[item.sellerId].total += item.price * item.quantity;
+    });
+    return Object.values(groups);
+  }, [cart, selectedMethods]);
 
   useEffect(() => {
     let timer: any;
@@ -41,32 +62,14 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
         commission: (item.price * item.quantity) * config.commissionRate,
         timestamp: Date.now(),
         currencySymbol: item.currencySymbol || '₦',
-        paymentMethod: item.paymentMethod || 'bank_transfer',
+        paymentMethod: selectedMethods[item.sellerId] || item.paymentMethod || 'bank_transfer',
         billingDetails: billing,
         deliveryType: deliveryType
       }));
       onCompletePurchase(newTransactions);
     }
     return () => clearInterval(timer);
-  }, [checkoutStep, countdown, cart, billing, deliveryType, config.commissionRate]);
-
-  const vendorGroups = useMemo(() => {
-    const groups: Record<string, { storeName: string; items: CartItem[]; total: number; sellerId: string; paymentMethod: string }> = {};
-    cart.forEach(item => {
-      if (!groups[item.sellerId]) {
-        groups[item.sellerId] = { 
-          storeName: item.storeName, 
-          items: [], 
-          total: 0, 
-          sellerId: item.sellerId,
-          paymentMethod: item.paymentMethod || 'bank_transfer'
-        };
-      }
-      groups[item.sellerId].items.push(item);
-      groups[item.sellerId].total += item.price * item.quantity;
-    });
-    return Object.values(groups);
-  }, [cart]);
+  }, [checkoutStep, countdown, cart, billing, deliveryType, config.commissionRate, selectedMethods]);
 
   const totalCartValue = cart.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
 
@@ -81,6 +84,10 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
       }
       return item;
     }));
+  };
+
+  const handleMethodChange = (sellerId: string, methodId: string) => {
+    setSelectedMethods(prev => ({ ...prev, [sellerId]: methodId }));
   };
 
   if (cart.length === 0) {
@@ -106,8 +113,8 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           <span className="absolute inset-0 flex items-center justify-center text-5xl font-black text-white">{countdown}</span>
         </div>
         <div className="space-y-4 max-w-lg">
-          <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Broadcasting to Network</h2>
-          <p className="text-indigo-300 font-bold uppercase tracking-widest text-xs animate-pulse">Syncing transaction packets with {vendorGroups.length} vendor nodes...</p>
+          <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Processing Order</h2>
+          <p className="text-indigo-300 font-bold uppercase tracking-widest text-xs animate-pulse">Syncing transaction packets with {vendorGroups.length} vendors...</p>
         </div>
       </div>
     );
@@ -118,7 +125,7 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b dark:border-slate-800 pb-8">
         <div>
           <h2 className="text-5xl font-black tracking-tighter uppercase">Procurement Bag</h2>
-          <p className="text-gray-500 font-bold text-xs mt-2">Aggregating {vendorGroups.length} unique vendor nodes</p>
+          <p className="text-gray-500 font-bold text-xs mt-2">Aggregating {vendorGroups.length} unique vendors</p>
         </div>
         <div className="bg-gray-50 dark:bg-slate-800 px-6 py-4 rounded-3xl">
            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Global Total</p>
@@ -136,7 +143,7 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                       <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-[10px] font-black uppercase">{group.storeName[0]}</div>
                       <h3 className="text-sm font-black uppercase tracking-tight">{group.storeName}</h3>
                    </div>
-                   <span className="text-[8px] font-black uppercase bg-white dark:bg-slate-900 px-3 py-1 rounded-full border dark:border-slate-700">Node ID: {group.sellerId.slice(-5)}</span>
+                   <span className="text-[8px] font-black uppercase bg-white dark:bg-slate-900 px-3 py-1 rounded-full border dark:border-slate-700">Seller ID: {group.sellerId.slice(-5)}</span>
                 </div>
                 <div className="divide-y dark:divide-slate-800">
                   {group.items.map(item => (
@@ -173,26 +180,46 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                  </div>
                  <div className="md:col-span-2 space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Fulfillment Address</label>
-                    <textarea value={billing.address} onChange={e => setBilling({...billing, address: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold h-24 border dark:border-slate-700" placeholder="Street address for delivery node..." />
+                    <textarea value={billing.address} onChange={e => setBilling({...billing, address: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold h-24 border dark:border-slate-700" placeholder="Street address for delivery location..." />
                  </div>
               </div>
             </div>
           ) : (
             <div className="space-y-8">
                {vendorGroups.map((group, i) => {
-                 const isBankTransfer = group.paymentMethod === 'bank_transfer';
+                 const currentMethod = selectedMethods[group.sellerId] || group.paymentMethod || 'bank_transfer';
+                 const isBankTransfer = currentMethod === 'bank_transfer';
+                 const isPOD = currentMethod === 'pod';
+
                  return (
                    <div key={i} className="bg-white dark:bg-slate-900 border-l-8 border-indigo-600 p-8 rounded-3xl shadow-sm space-y-6 animate-slide-up">
-                      <h4 className="text-xl font-black uppercase tracking-tighter">Settlement: {group.storeName}</h4>
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-xl font-black uppercase tracking-tighter">Settlement: {group.storeName}</h4>
+                        <select 
+                          value={currentMethod}
+                          onChange={(e) => handleMethodChange(group.sellerId, e.target.value)}
+                          className="bg-gray-100 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase p-3 outline-none focus:ring-2 focus:ring-indigo-600"
+                        >
+                          {PAYMENT_METHODS.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
                       {isBankTransfer ? (
                         <div className="bg-gray-50 dark:bg-slate-800 p-6 rounded-2xl space-y-4">
                            <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest mb-2">Central Company Bank Details</p>
                            <pre className="text-sm font-black dark:text-white whitespace-pre-wrap leading-relaxed">{config.adminBankDetails || "Admin bank details not configured."}</pre>
-                           <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the company bank above. Vendors will broadcast items once our central hub verifies the transaction packet."</p>
+                           <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the company bank above. Vendors will ship items once our central hub verifies the transaction packet."</p>
+                        </div>
+                      ) : isPOD ? (
+                        <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 space-y-2">
+                           <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest mb-1">Payment on Delivery Protocol</p>
+                           <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200">Our logistics agent will collect the settlement upon fulfillment. Please ensure you have the correct valuation (₦{group.total.toLocaleString()}) available at the delivery location.</p>
                         </div>
                       ) : (
                         <div className="p-5 bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 text-[10px] font-bold">
-                           Please proceed with the external {group.paymentMethod.toUpperCase()} transaction.
+                           Please proceed with the external {currentMethod.toUpperCase()} transaction gateway for this vendor group.
                         </div>
                       )}
                    </div>

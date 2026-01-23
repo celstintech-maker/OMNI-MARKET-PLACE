@@ -1,8 +1,12 @@
 
 export enum UserRole {
-  ADMIN = 'ADMIN',
+  ADMIN = 'ADMIN', // Super Admin
   SELLER = 'SELLER',
-  BUYER = 'BUYER'
+  BUYER = 'BUYER',
+  STAFF = 'STAFF', // Generic Staff
+  MARKETER = 'MARKETER',
+  TEAM_MEMBER = 'TEAM_MEMBER',
+  TECHNICAL = 'TECHNICAL'
 }
 
 export interface BankDetails {
@@ -31,9 +35,9 @@ export interface SellerVerification {
   phoneNumber: string;
   profilePictureUrl: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
-  identityApproved?: boolean; // New: Specifically for identity documents review
-  cacRegistrationNumber?: string; // New: CAC Registration
-  govDocumentUrl?: string; // New: Link to identity document
+  identityApproved?: boolean; 
+  cacRegistrationNumber?: string; 
+  govDocumentUrl?: string; 
   productSamples: string[];
   approvalDate?: number;
 }
@@ -50,12 +54,14 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  pin?: string; // Added PIN for authentication
   storeName?: string;
   country?: string; 
   state?: string;
   city?: string;
   isSuspended?: boolean;
   registeredUnderSellerId?: string;
+  recruitedBy?: string; 
   paymentMethod?: string;
   enabledPaymentMethods?: string[];
   bankDetails?: BankDetails;
@@ -64,6 +70,18 @@ export interface User {
   rentPaid?: boolean;
   subscriptionExpiry?: number;
   aiConfig?: AIConfig;
+  notifications?: string[]; 
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  buyerId: string;
+  buyerName: string;
+  rating: number;
+  comment: string;
+  timestamp: number;
+  verifiedPurchase: boolean;
 }
 
 export interface Product {
@@ -82,6 +100,8 @@ export interface Product {
   currencySymbol?: string; 
   paymentMethod?: string; 
   location?: string;
+  flags?: number; // Number of times flagged
+  isFlagged?: boolean; // If true, hidden from main feed until reviewed
 }
 
 export interface CartItem extends Product {
@@ -118,7 +138,8 @@ export enum DisputeStatus {
   OPEN = 'OPEN',
   UNDER_REVIEW = 'UNDER_REVIEW',
   RESOLVED = 'RESOLVED',
-  REFUNDED = 'REFUNDED'
+  REFUNDED = 'REFUNDED',
+  ESCALATED = 'ESCALATED' // Admin intervention
 }
 
 export interface Dispute {
@@ -131,6 +152,7 @@ export interface Dispute {
   status: DisputeStatus;
   timestamp: number;
   adminNote?: string;
+  escalatedAt?: number;
 }
 
 export interface Transaction {
@@ -141,6 +163,7 @@ export interface Transaction {
   storeName: string;
   amount: number;
   commission: number;
+  tax: number; // Tax amount deducted
   timestamp: number;
   currencySymbol: string;
   paymentMethod: string;

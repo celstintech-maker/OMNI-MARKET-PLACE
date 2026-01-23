@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { Product, Store, User, CartItem } from '../types';
-import { CATEGORIES } from '../constants';
 import { SiteConfig } from '../App';
 
 // Define the interface for MarketplaceHome component props
@@ -10,6 +9,7 @@ interface MarketplaceHomeProps {
   config: SiteConfig;
   products: Product[];
   stores: Store[];
+  categories: string[];
   onNavigateToStore: (storeName: string) => void;
   wishlist: string[];
   onToggleWishlist: (productId: string) => void;
@@ -17,6 +17,7 @@ interface MarketplaceHomeProps {
   currentUser: User | null;
   onAddToCart: (item: CartItem) => void;
   onBecomeSeller: () => void;
+  onFlagProduct: (productId: string) => void;
 }
 
 const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], customUrl?: string }) => {
@@ -57,26 +58,33 @@ const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], cus
 };
 
 export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({ 
-  config, products, stores, onNavigateToStore, wishlist, onToggleWishlist, isLoggedIn, currentUser, onAddToCart, onBecomeSeller 
+  config, products, stores, categories, onNavigateToStore, wishlist, onToggleWishlist, isLoggedIn, currentUser, onAddToCart, onBecomeSeller, onFlagProduct 
 }) => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filter out products from suspended stores
+  const activeStores = useMemo(() => stores.filter(s => s.status !== 'suspended'), [stores]);
+  const activeStoreNames = useMemo(() => activeStores.map(s => s.name), [activeStores]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      // Only show products from active stores
+      if (!activeStoreNames.includes(p.storeName)) return false;
+
       const categoryMatch = activeCategory === 'All' || p.category === activeCategory;
       const searchMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.storeName.toLowerCase().includes(searchQuery.toLowerCase());
       return categoryMatch && searchMatch;
     });
-  }, [products, activeCategory, searchQuery]);
+  }, [products, activeCategory, searchQuery, activeStoreNames]);
 
   const vendorResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    return stores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [stores, searchQuery]);
+    return activeStores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [activeStores, searchQuery]);
 
-  const slideshowProducts = useMemo(() => products.slice(0, 5), [products]);
+  const slideshowProducts = useMemo(() => filteredProducts.slice(0, 5), [filteredProducts]);
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-20">
@@ -94,9 +102,9 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-8 max-w-4xl mx-auto pt-4 animate-slide-up animation-delay-300 px-2">
             {[
-              { label: 'Active Stores', value: stores.length + 42, suffix: '+' },
-              { label: 'Total Products', value: products.length + 120, suffix: '+' },
-              { label: 'Verified Hubs', value: 12, suffix: '' },
+              { label: 'Active Stores', value: activeStores.length + 42, suffix: '+' },
+              { label: 'Total Products', value: filteredProducts.length + 120, suffix: '+' },
+              { label: 'Verified Stores', value: 12, suffix: '' },
               { label: 'Uptime', value: 99.9, suffix: '%' }
             ].map((stat, i) => (
               <div key={i} className="bg-white/10 backdrop-blur-2xl border border-white/10 p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-2xl hover:bg-white/20 transition-all group cursor-default">
@@ -128,7 +136,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
             {vendorResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-4 bg-white dark:bg-slate-900 backdrop-blur-2xl rounded-3xl sm:rounded-[3rem] shadow-2xl border dark:border-slate-800 p-4 sm:p-8 z-50 animate-slide-up">
                 <div className="flex items-center justify-between mb-4 px-2">
-                   <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Node Match Identified</p>
+                   <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Store Match Identified</p>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {vendorResults.map(store => (
@@ -160,11 +168,11 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
       <section id="stores-list" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="text-center space-y-2">
-           <h3 className="text-3xl sm:text-4xl font-black tracking-tighter">Verified Vendors</h3>
+           <h3 className="text-3xl sm:text-4xl font-black tracking-tighter dark:text-white">Verified Vendors</h3>
            <p className="text-gray-500 font-medium text-sm px-4">Direct marketplace access for verified global distributors.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-           {stores.map(store => (
+           {activeStores.map(store => (
              <div 
               key={store.id} 
               onClick={() => onNavigateToStore(store.name)}
@@ -175,7 +183,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
                 </div>
                 <div className="p-6 sm:p-8">
                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-xl sm:text-2xl font-black tracking-tighter">{store.name}</h4>
+                      <h4 className="text-xl sm:text-2xl font-black tracking-tighter dark:text-white">{store.name}</h4>
                       <span className="bg-green-50 dark:bg-green-900/20 text-green-600 text-[8px] font-black uppercase px-3 py-1 rounded-full">Active</span>
                    </div>
                    <p className="text-gray-500 text-xs sm:text-sm font-medium line-clamp-2 mb-6">{store.description}</p>
@@ -191,11 +199,11 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
       <section id="browse" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="flex flex-col gap-6 border-b dark:border-slate-800 pb-6 sm:pb-8">
            <div>
-             <h3 className="text-3xl sm:text-4xl font-black tracking-tighter mb-2">Global Feed</h3>
-             <p className="text-gray-500 font-medium text-sm sm:text-base">Real-time products synced from verified nodes.</p>
+             <h3 className="text-3xl sm:text-4xl font-black tracking-tighter mb-2 dark:text-white">Global Feed</h3>
+             <p className="text-gray-500 font-medium text-sm sm:text-base">Real-time products synced from verified stores.</p>
            </div>
            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-2 px-2">
-             {['All', ...CATEGORIES].map(cat => (
+             {['All', ...categories].map(cat => (
                <button 
                  key={cat} 
                  onClick={() => setActiveCategory(cat)}
@@ -222,7 +230,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
         {filteredProducts.length === 0 && (
           <div className="py-20 sm:py-32 text-center bg-gray-50 dark:bg-slate-900/50 rounded-3xl sm:rounded-[4rem] border-2 border-dashed border-gray-100 dark:border-slate-800">
-            <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em]">No identifying node match found</p>
+            <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em]">No identifying store match found</p>
           </div>
         )}
       </section>
