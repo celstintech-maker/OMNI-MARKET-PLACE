@@ -68,7 +68,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, transactio
       {role === UserRole.TECHNICAL && (
         <div className="space-y-8">
            <div className="bg-slate-900 text-white p-10 rounded-[3rem] font-mono border dark:border-slate-800">
-              <h3 className="text-green-400 font-bold mb-4">> SYSTEM_STATUS</h3>
+              <h3 className="text-green-400 font-bold mb-4">&gt; SYSTEM_STATUS</h3>
               <div className="space-y-2 text-sm opacity-80">
                  <p>API_GATEWAY: <span className="text-green-400">ONLINE</span></p>
                  <p>DATABASE_SHARDS: <span className="text-green-400">SYNCED</span> (4 Nodes)</p>
