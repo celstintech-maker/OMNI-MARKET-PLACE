@@ -10,7 +10,8 @@ interface StorePageProps {
   wishlist: string[];
   onToggleWishlist: (productId: string) => void;
   isLoggedIn: boolean;
-  onBuy?: (product: Product) => void;
+  // Fix: Renamed onBuy to onAddToCart and updated type to CartItem to match usage in App.tsx
+  onAddToCart?: (item: CartItem) => void;
 }
 
 export const StorePage: React.FC<StorePageProps> = ({ 
@@ -20,16 +21,9 @@ export const StorePage: React.FC<StorePageProps> = ({
   wishlist,
   onToggleWishlist,
   isLoggedIn,
-  onBuy
+  onAddToCart
 }) => {
   const storeProducts = products.filter(p => p.storeName === store.name);
-
-  /* Helper to map onBuy to onAddToCart for the ProductCard */
-  const handleAddToCart = (item: CartItem) => {
-    if (onBuy) {
-      onBuy(item);
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -56,7 +50,7 @@ export const StorePage: React.FC<StorePageProps> = ({
             onClickStore={onNavigateToStore} 
             isWishlisted={wishlist.includes(p.id)}
             onToggleWishlist={isLoggedIn ? onToggleWishlist : undefined}
-            onAddToCart={handleAddToCart}
+            onAddToCart={onAddToCart}
           />
         ))}
       </div>

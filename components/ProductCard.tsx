@@ -55,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       quantity: quantity
     });
     setShowModal(false);
-    setQuantity(1); // Reset for next time
+    setQuantity(1);
   };
 
   const toggleVideoPlayback = () => {
@@ -73,7 +73,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     <>
       <div 
         onClick={() => setShowModal(true)}
-        className="group bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all cursor-pointer animate-slide-up"
+        className="group bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all cursor-pointer animate-slide-up relative"
       >
         <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-slate-800">
           <img src={product.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt={product.name} />
@@ -87,6 +87,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </svg>
             </button>
           )}
+          
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleAddToCart(); }}
+            className="absolute bottom-4 right-4 bg-indigo-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300"
+          >
+            <span className="text-xl font-black">+</span>
+          </button>
+
           <div className="absolute bottom-4 left-4">
             <span className="bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-xl tracking-widest shadow-xl">
               {product.category}
@@ -166,100 +174,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       <span className="bg-slate-900 dark:bg-slate-700 text-white text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em]">Verified Node</span>
                     </div>
                     <h3 className="text-3xl sm:text-4xl font-black tracking-tighter leading-none dark:text-white">{product.name}</h3>
-                    <div className="flex items-center gap-2 text-gray-400 group cursor-pointer" onClick={() => onClickStore(product.storeName)}>
-                      <Icons.Map />
-                      <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-600 transition">Origin: {product.location || 'Global Hub'}</p>
-                    </div>
                   </div>
 
                   <p className="text-gray-500 dark:text-slate-400 text-sm font-medium leading-relaxed italic border-l-4 border-indigo-600 pl-6">"{product.description}"</p>
-
-                  {product.category === 'Fashion' && product.sizes && (
-                    <div className="space-y-3">
-                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Dimension Select</p>
-                      <div className="flex flex-wrap gap-2">
-                        {product.sizes.map(size => (
-                          <button 
-                            key={size}
-                            onClick={() => setSelectedSize(size)}
-                            className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${selectedSize === size ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-50 dark:bg-slate-800 text-gray-500 border border-gray-100 dark:border-slate-700'}`}
-                          >
-                            {size}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   <div className="grid grid-cols-2 gap-8 items-center pt-6 border-t dark:border-slate-800">
                     <div>
                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Unit Valuation</p>
                       <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{currency}{product.price.toLocaleString()}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Sync Availability</p>
-                      <p className="text-sm font-black text-green-600 uppercase">{product.stock} Units Detected</p>
-                    </div>
                   </div>
 
                   <div className="bg-gray-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] space-y-6">
-                    <div className="flex items-center justify-between">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Secure Purchase Protocol</p>
-                       <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border-2 border-indigo-500 shadow-sm">
-                          <button 
-                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            className="w-10 h-10 flex items-center justify-center font-black text-xl text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-xl transition"
-                          >
-                            -
-                          </button>
-                          <input 
-                            type="number" 
-                            min="1" 
-                            max={product.stock}
-                            value={quantity}
-                            onChange={(e) => handleQuantityChange(e.target.value)}
-                            className="w-16 bg-transparent text-center font-black text-lg outline-none dark:text-white"
-                          />
-                          <button 
-                            onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                            className="w-10 h-10 flex items-center justify-center font-black text-xl text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-xl transition"
-                          >
-                            +
-                          </button>
-                       </div>
-                    </div>
-
                     <button 
                       onClick={handleAddToCart}
-                      className="w-full bg-indigo-600 text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.4em] shadow-2xl hover:bg-indigo-700 transition active:scale-95"
+                      className="w-full bg-indigo-600 text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.4em] shadow-2xl hover:bg-indigo-700 transition active:scale-95 flex items-center justify-center gap-3"
                     >
-                      Initialize Transaction ({currency}{(product.price * quantity).toLocaleString()})
+                      <span className="text-xl">+</span> Initialize Transaction ({currency}{(product.price * quantity).toLocaleString()})
                     </button>
-
-                    <div className="flex items-center justify-center gap-6">
-                       <div className="flex items-center gap-2">
-                          <span className="text-green-500">🛡️</span>
-                          <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Encrypted Checkout</span>
-                       </div>
-                       <div className="flex items-center gap-2">
-                          <span className="text-indigo-500">🚚</span>
-                          <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Global Express</span>
-                       </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                     <p className="text-[9px] font-black uppercase text-gray-400 tracking-[0.3em] mb-4">Merchant Node Details</p>
-                     <div className="flex items-center gap-4 bg-gray-50 dark:bg-slate-800/30 p-4 rounded-2xl border dark:border-slate-800">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xs">{product.storeName[0]}</div>
-                        <div className="flex-1">
-                           <p className="text-xs font-black dark:text-white">{product.storeName}</p>
-                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Verified Multi-Vendor Node</p>
-                        </div>
-                        <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border dark:border-slate-700">
-                           <span className="text-[9px] font-black uppercase text-gray-400">Port: {payMethod?.icon} {payMethod?.name}</span>
-                        </div>
-                     </div>
                   </div>
                </div>
             </div>

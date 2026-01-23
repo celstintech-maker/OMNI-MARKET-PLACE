@@ -11,6 +11,17 @@ export interface BankDetails {
   accountName: string;
 }
 
+export interface BillingDetails {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+}
+
+export type DeliveryType = 'home_delivery' | 'instant_pickup';
+
 export interface SellerVerification {
   businessName: string;
   businessAddress: string;
@@ -20,7 +31,18 @@ export interface SellerVerification {
   phoneNumber: string;
   profilePictureUrl: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
+  identityApproved?: boolean; // New: Specifically for identity documents review
+  cacRegistrationNumber?: string; // New: CAC Registration
+  govDocumentUrl?: string; // New: Link to identity document
   productSamples: string[];
+  approvalDate?: number;
+}
+
+export interface AIConfig {
+  greeting: string;
+  tone: 'professional' | 'friendly' | 'enthusiastic' | 'minimalist';
+  autoReplyEnabled: boolean;
+  specialInstructions: string;
 }
 
 export interface User {
@@ -35,9 +57,13 @@ export interface User {
   isSuspended?: boolean;
   registeredUnderSellerId?: string;
   paymentMethod?: string;
+  enabledPaymentMethods?: string[];
   bankDetails?: BankDetails;
   verification?: SellerVerification;
   passwordHint?: string; 
+  rentPaid?: boolean;
+  subscriptionExpiry?: number;
+  aiConfig?: AIConfig;
 }
 
 export interface Product {
@@ -88,6 +114,25 @@ export interface Feedback {
   buyerName: string;
 }
 
+export enum DisputeStatus {
+  OPEN = 'OPEN',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  RESOLVED = 'RESOLVED',
+  REFUNDED = 'REFUNDED'
+}
+
+export interface Dispute {
+  id: string;
+  transactionId: string;
+  buyerId: string;
+  sellerId: string;
+  reason: 'fake_product' | 'not_delivered' | 'damaged' | 'scam' | 'other';
+  description: string;
+  status: DisputeStatus;
+  timestamp: number;
+  adminNote?: string;
+}
+
 export interface Transaction {
   id: string;
   productId: string;
@@ -101,4 +146,6 @@ export interface Transaction {
   paymentMethod: string;
   bankDetails?: BankDetails;
   feedback?: Feedback;
+  billingDetails: BillingDetails;
+  deliveryType: DeliveryType;
 }
