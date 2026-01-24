@@ -56,10 +56,70 @@ const STORAGE_KEYS = {
   TRANSACTIONS: 'omni_transactions',
   DISPUTES: 'omni_disputes',
   CATEGORIES: 'omni_categories',
-  REVIEWS: 'omni_reviews'
+  REVIEWS: 'omni_reviews',
+  SITE_UNLOCKED: 'omni_security_clearance'
+};
+
+const SecurityGate: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin === '6561') {
+      onUnlock();
+    } else {
+      setError(true);
+      setPin('');
+      setTimeout(() => setError(false), 1000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center p-4 z-[9999] text-center font-mono select-none">
+      <div className="max-w-md w-full space-y-8 animate-slide-up">
+        <div className="relative w-24 h-24 mx-auto mb-8">
+           <div className={`absolute inset-0 border-4 border-indigo-600 rounded-full animate-spin ${error ? 'border-red-600' : 'border-indigo-600'}`} style={{ animationDuration: '3s' }}></div>
+           <div className={`absolute inset-4 border-4 border-slate-700 rounded-full animate-spin ${error ? 'border-red-900' : 'border-slate-700'}`} style={{ animationDuration: '2s', animationDirection: 'reverse' }}></div>
+           <div className="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>
+        </div>
+        
+        <div>
+           <h1 className="text-3xl font-black uppercase text-white tracking-[0.5em] mb-2">Omni Private</h1>
+           <p className="text-indigo-500 text-xs font-bold uppercase tracking-widest">Restricted Network Access</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+           <input 
+             type="password" 
+             value={pin}
+             onChange={(e) => setPin(e.target.value)}
+             className={`w-full bg-slate-900 border-2 ${error ? 'border-red-600 text-red-500' : 'border-slate-800 text-white focus:border-indigo-600'} rounded-xl p-5 text-center text-2xl font-black outline-none tracking-[1em] transition-all`}
+             placeholder="••••"
+             maxLength={4}
+             autoFocus
+           />
+           <button 
+             type="submit"
+             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-black uppercase text-xs tracking-[0.3em] transition-all shadow-lg active:scale-95"
+           >
+             Decrypt Interface
+           </button>
+        </form>
+        
+        {error && (
+          <p className="text-red-500 text-xs font-black uppercase tracking-widest animate-pulse">Access Denied: Invalid Credential</p>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const App: React.FC = () => {
+  const [isSiteUnlocked, setIsSiteUnlocked] = useState(() => {
+    return sessionStorage.getItem(STORAGE_KEYS.SITE_UNLOCKED) === 'true';
+  });
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.USER);
     return saved ? JSON.parse(saved) : null;
@@ -154,6 +214,44 @@ const App: React.FC = () => {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [allMessages, setAllMessages] = useState<Record<string, Message[]>>({});
   const [lastOrderDetails, setLastOrderDetails] = useState<{ transactions: Transaction[] } | null>(null);
+
+  // Security Protocols: Anti-Inspection
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block F12
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+      // Block Ctrl+Shift+I (DevTools)
+      if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+      }
+      // Block Ctrl+Shift+J (Console)
+      if (e.ctrlKey && e.shiftKey && e.key === 'J') {
+        e.preventDefault();
+      }
+      // Block Ctrl+U (View Source)
+      if (e.ctrlKey && e.key === 'u') {
+        e.preventDefault();
+      }
+      // Block Ctrl+S (Save Page)
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Persistence
   useEffect(() => {
@@ -330,6 +428,15 @@ const App: React.FC = () => {
       return s;
     }));
   };
+
+  const handleUnlockSite = () => {
+    setIsSiteUnlocked(true);
+    sessionStorage.setItem(STORAGE_KEYS.SITE_UNLOCKED, 'true');
+  };
+
+  if (!isSiteUnlocked) {
+    return <SecurityGate onUnlock={handleUnlockSite} />;
+  }
 
   // Get current user's fresh state from vendors list for notifications and pin updates
   const freshCurrentUser = currentUser ? vendors.find(v => v.id === currentUser.id) || currentUser : null;

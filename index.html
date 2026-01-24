@@ -31,8 +31,21 @@
       color: #0f172a; 
       overflow-x: hidden; 
       transition: background-color 0.3s ease, color 0.3s ease;
+      
+      /* Security: Disable selection */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
     
+    /* Security: Prevent image dragging */
+    img {
+      -webkit-user-drag: none;
+      user-drag: none;
+      pointer-events: none;
+    }
+
     /* Dark mode override */
     .dark body {
       background-color: #0f172a;
@@ -42,6 +55,11 @@
     /* Force inputs to have readable text in dark mode if not explicitly set */
     .dark input, .dark textarea, .dark select {
       color-scheme: dark;
+      /* Allow selection inside inputs so users can type */
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
     }
 
     .no-scrollbar::-webkit-scrollbar { display: none; }
