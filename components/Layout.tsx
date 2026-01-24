@@ -15,10 +15,11 @@ interface LayoutProps {
   cartCount: number;
   onOpenCart: () => void;
   config: SiteConfig;
+  wishlistCount?: number;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
-  children, user, onLogout, onNavigate, currentView, theme, onToggleTheme, cartCount, onOpenCart, config 
+  children, user, onLogout, onNavigate, currentView, theme, onToggleTheme, cartCount, onOpenCart, config, wishlistCount = 0
 }) => {
   const [footerExpanded, setFooterExpanded] = useState(false);
 
@@ -80,6 +81,16 @@ export const Layout: React.FC<LayoutProps> = ({
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button 
+              onClick={() => { onNavigate('wishlist'); window.location.hash = '#/wishlist'; }}
+              className="relative p-2 sm:p-3 rounded-xl text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all"
+              title="Wishlist"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 animate-bounce">{wishlistCount}</span>
+              )}
             </button>
             <button onClick={onOpenCart} className="relative p-2 sm:p-3 rounded-xl bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700 transition-all">
               <Icons.Store />

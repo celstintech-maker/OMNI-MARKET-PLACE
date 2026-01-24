@@ -73,7 +73,7 @@ export const ServicesView: React.FC<{ config: SiteConfig }> = ({ config }) => {
           onClick={() => { window.location.hash = '#/auth'; }}
           className="bg-white text-indigo-600 px-12 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl hover:scale-110 active:scale-95 transition"
         >
-          Initialize Store Entry
+          Open Store
         </button>
       </div>
     </div>

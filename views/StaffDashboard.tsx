@@ -37,6 +37,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, transactio
     alert("PIN Updated Successfully");
   };
 
+  const activeDisputes = disputes.filter(d => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.ESCALATED);
+
   return (
     <div className="space-y-12 pb-20 animate-fade-in relative">
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -94,9 +96,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, transactio
            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800">
               <h3 className="font-black uppercase text-xs tracking-widest mb-6 dark:text-white">Pending Support Tickets</h3>
               <div className="space-y-4">
-                 {disputes.filter(d => d.status === DisputeStatus.OPEN).length === 0 ? (
+                 {activeDisputes.length === 0 ? (
                     <p className="text-gray-400 font-bold text-xs">No active tickets.</p>
-                 ) : disputes.map(d => (
+                 ) : activeDisputes.map(d => (
                     <div key={d.id} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl flex justify-between items-center">
                        <span className="text-xs font-bold dark:text-white">Dispute #{d.id.slice(-4)}</span>
                        <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-full font-black uppercase">{d.status}</span>

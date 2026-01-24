@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { CartItem, Transaction, BillingDetails, DeliveryType } from '../types';
+import { CartItem, Transaction, BillingDetails, DeliveryType, User } from '../types';
 import { Icons, PAYMENT_METHODS } from '../constants';
 import { SiteConfig } from '../App';
 
@@ -10,9 +10,10 @@ interface CartViewProps {
   onNavigate: (view: string) => void;
   onCompletePurchase: (newTransactions: Transaction[]) => void;
   config: SiteConfig;
+  vendors: User[];
 }
 
-export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, onCompletePurchase, config }) => {
+export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, onCompletePurchase, config, vendors }) => {
   const [checkoutStep, setCheckoutStep] = useState<'review' | 'billing' | 'payment' | 'syncing'>('review');
   const [countdown, setCountdown] = useState(5);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('home_delivery');
@@ -52,20 +53,27 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
     if (checkoutStep === 'syncing' && countdown > 0) {
       timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
     } else if (checkoutStep === 'syncing' && countdown === 0) {
-      const newTransactions: Transaction[] = cart.map(item => ({
-        id: `tr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        productId: item.id,
-        productName: item.name,
-        sellerId: item.sellerId,
-        storeName: item.storeName,
-        amount: item.price * item.quantity,
-        commission: (item.price * item.quantity) * config.commissionRate,
-        timestamp: Date.now(),
-        currencySymbol: item.currencySymbol || '₦',
-        paymentMethod: selectedMethods[item.sellerId] || item.paymentMethod || 'bank_transfer',
-        billingDetails: billing,
-        deliveryType: deliveryType
-      }));
+      const newTransactions: Transaction[] = cart.map(item => {
+        // Resolve the actual payment method used for this item's seller group
+        const groupMethod = selectedMethods[item.sellerId];
+        // If not explicitly selected in this session, fallback to item's default or bank_transfer
+        const method = groupMethod || item.paymentMethod || 'bank_transfer';
+
+        return {
+          id: `tr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          productId: item.id,
+          productName: item.name,
+          sellerId: item.sellerId,
+          storeName: item.storeName,
+          amount: item.price * item.quantity,
+          commission: (item.price * item.quantity) * config.commissionRate,
+          timestamp: Date.now(),
+          currencySymbol: item.currencySymbol || '₦',
+          paymentMethod: method,
+          billingDetails: billing,
+          deliveryType: deliveryType
+        };
+      });
       onCompletePurchase(newTransactions);
     }
     return () => clearInterval(timer);
@@ -169,6 +177,7 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           ) : checkoutStep === 'billing' ? (
             <div className="bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[3rem] border dark:border-slate-800 shadow-sm space-y-8 animate-slide-up">
               <h3 className="text-3xl font-black uppercase tracking-tighter">Logistics Dossier</h3>
+              <p className="text-xs text-gray-500 font-bold">This billing information will be shared with sellers for order fulfillment, including Payment on Delivery orders.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Full Name</label>
@@ -178,32 +187,69 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Encrypted Email</label>
                     <input type="email" value={billing.email} onChange={e => setBilling({...billing, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="john@omni.link" />
                  </div>
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Phone Number</label>
+                    <input type="tel" value={billing.phone} onChange={e => setBilling({...billing, phone: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="+123..." />
+                 </div>
                  <div className="md:col-span-2 space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Fulfillment Address</label>
                     <textarea value={billing.address} onChange={e => setBilling({...billing, address: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold h-24 border dark:border-slate-700" placeholder="Street address for delivery location..." />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">City</label>
+                    <input value={billing.city} onChange={e => setBilling({...billing, city: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="City" />
                  </div>
               </div>
             </div>
           ) : (
             <div className="space-y-8">
                {vendorGroups.map((group, i) => {
-                 const currentMethod = selectedMethods[group.sellerId] || group.paymentMethod || 'bank_transfer';
+                 // Determine available methods for this seller
+                 const seller = vendors.find(v => v.id === group.sellerId);
+                 const allowedMethods = (seller?.enabledPaymentMethods && seller.enabledPaymentMethods.length > 0)
+                    ? seller.enabledPaymentMethods
+                    : ['bank_transfer']; // Default to bank transfer if none configured or found
+
+                 const availablePaymentMethods = PAYMENT_METHODS.filter(pm => allowedMethods.includes(pm.id));
+
+                 // Calculate effective method. 
+                 // If the user selected one, use it. 
+                 // Else if the product had a default, check if it's allowed.
+                 // Else fallback to the first allowed method.
+                 let currentMethod = selectedMethods[group.sellerId] || group.paymentMethod || allowedMethods[0];
+                 
+                 // Safety check: ensure currentMethod is actually allowed by the seller
+                 if (!allowedMethods.includes(currentMethod)) {
+                    currentMethod = allowedMethods[0];
+                 }
+
                  const isBankTransfer = currentMethod === 'bank_transfer';
                  const isPOD = currentMethod === 'pod';
 
                  return (
                    <div key={i} className="bg-white dark:bg-slate-900 border-l-8 border-indigo-600 p-8 rounded-3xl shadow-sm space-y-6 animate-slide-up">
-                      <div className="flex justify-between items-start">
+                      <div className="flex flex-col gap-4">
                         <h4 className="text-xl font-black uppercase tracking-tighter">Settlement: {group.storeName}</h4>
-                        <select 
-                          value={currentMethod}
-                          onChange={(e) => handleMethodChange(group.sellerId, e.target.value)}
-                          className="bg-gray-100 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase p-3 outline-none focus:ring-2 focus:ring-indigo-600"
-                        >
-                          {PAYMENT_METHODS.map(m => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                          ))}
-                        </select>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Select Payment Method</p>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {availablePaymentMethods.map(m => {
+                            const isSelected = currentMethod === m.id;
+                            return (
+                              <button 
+                                key={m.id} 
+                                onClick={() => handleMethodChange(group.sellerId, m.id)}
+                                className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${isSelected ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'border-gray-100 dark:border-slate-700 hover:border-gray-300'}`}
+                              >
+                                <span className="text-xl">{m.icon}</span>
+                                <div>
+                                  <p className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>{m.name}</p>
+                                </div>
+                                {isSelected && <span className="ml-auto text-indigo-600 dark:text-indigo-400 font-bold text-lg">✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {isBankTransfer ? (
@@ -213,12 +259,17 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                            <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the company bank above. Vendors will ship items once our central hub verifies the transaction packet."</p>
                         </div>
                       ) : isPOD ? (
-                        <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 space-y-2">
+                        <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-2">
                            <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest mb-1">Payment on Delivery Protocol</p>
-                           <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200">Our logistics agent will collect the settlement upon fulfillment. Please ensure you have the correct valuation (₦{group.total.toLocaleString()}) available at the delivery location.</p>
+                           <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200">Our logistics agent will collect the settlement upon fulfillment. Please ensure you have the correct valuation (₦{group.total.toLocaleString()}) available at the delivery location below.</p>
+                           <div className="mt-2 p-3 bg-white dark:bg-slate-800 rounded-xl border border-amber-200 dark:border-amber-800">
+                              <p className="text-[9px] font-black uppercase text-gray-400">Delivery Target</p>
+                              <p className="text-xs font-bold dark:text-white">{billing.address}, {billing.city}</p>
+                              <p className="text-[10px] text-gray-500">{billing.fullName} • {billing.phone}</p>
+                           </div>
                         </div>
                       ) : (
-                        <div className="p-5 bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 text-[10px] font-bold">
+                        <div className="p-5 bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 text-[10px] font-bold dark:text-indigo-300">
                            Please proceed with the external {currentMethod.toUpperCase()} transaction gateway for this vendor group.
                         </div>
                       )}
@@ -243,7 +294,20 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
             </div>
             <div className="pt-8">
                {checkoutStep === 'review' && <button onClick={() => setCheckoutStep('billing')} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Proceed to Logistics</button>}
-               {checkoutStep === 'billing' && <button onClick={() => setCheckoutStep('payment')} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Confirm Logistics</button>}
+               {checkoutStep === 'billing' && (
+                 <button 
+                   onClick={() => {
+                     if (!billing.fullName || !billing.address || !billing.phone) {
+                       alert("Please complete the essential delivery details.");
+                       return;
+                     }
+                     setCheckoutStep('payment');
+                   }} 
+                   className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl"
+                 >
+                   Confirm Logistics
+                 </button>
+               )}
                {checkoutStep === 'payment' && <button onClick={() => setCheckoutStep('syncing')} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Authorize Settlement</button>}
             </div>
           </div>

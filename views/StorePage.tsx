@@ -52,7 +52,7 @@ export const StorePage: React.FC<StorePageProps> = ({
                 product={p} 
                 onClickStore={onNavigateToStore} 
                 isWishlisted={wishlist.includes(p.id)}
-                onToggleWishlist={isLoggedIn ? onToggleWishlist : undefined}
+                onToggleWishlist={onToggleWishlist}
                 onAddToCart={onAddToCart}
              />
              {/* Report Button overlay */}

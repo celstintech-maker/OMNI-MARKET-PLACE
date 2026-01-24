@@ -22,18 +22,24 @@ interface AdminDashboardProps {
   onAddCategory: (category: string) => void;
   onCreateStaff?: (staff: User) => void;
   onUpdateProduct: (product: Product) => void;
+  onSendNotification: (userId: string, message: string) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  vendors, siteConfig, disputes, products, categories, currentUser, onDeleteVendor, onUpdateUser, onUpdateDispute, onUpdateConfig, onAddCategory, onCreateStaff, onUpdateProduct, onToggleVendorStatus
+  vendors, siteConfig, disputes, products, transactions, categories, currentUser, onDeleteVendor, onUpdateUser, onUpdateDispute, onUpdateConfig, onAddCategory, onCreateStaff, onUpdateProduct, onToggleVendorStatus, onSendNotification
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'justice' | 'settings' | 'ai' | 'staff' | 'flagged'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'activities' | 'justice' | 'settings' | 'ai' | 'staff' | 'flagged'>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [aiOutput, setAiOutput] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
   const [editingVendorAI, setEditingVendorAI] = useState<string | null>(null);
   
+  // Activities / Messaging State
+  const [messagingSeller, setMessagingSeller] = useState<User | null>(null);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [expandedSellerTransactions, setExpandedSellerTransactions] = useState<string | null>(null);
+
   // Staff Creation & Editing State
   const [newStaff, setNewStaff] = useState({ name: '', email: '', pin: '1234', role: UserRole.STAFF });
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
@@ -155,15 +161,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onUpdateProduct({ ...product, isFlagged: false, flags: 0 });
   };
 
+  const handleSendAdminMessage = () => {
+    if (!messagingSeller || !adminMessage.trim()) return;
+    const msg = `[ADMIN INSIGHT]: ${adminMessage}`;
+    onSendNotification(messagingSeller.id, msg);
+    setAdminMessage('');
+    setMessagingSeller(null);
+    alert(`Insight sent to ${messagingSeller.storeName}`);
+  };
+
+  const getSellerSales = (sellerId: string) => {
+    return transactions
+      .filter(t => t.sellerId === sellerId)
+      .reduce((acc, curr) => acc + curr.amount, 0);
+  };
+
+  const getSellerTransactions = (sellerId: string) => {
+    return transactions.filter(t => t.sellerId === sellerId).sort((a,b) => b.timestamp - a.timestamp);
+  };
+
   // Build Tabs
   const tabs = [
     {id: 'users', label: 'Stores'},
+    {id: 'activities', label: 'Activities'},
     {id: 'staff', label: 'Staff & Roles'},
     {id: 'justice', label: 'Justice Hub', count: disputes.filter(d => d.status === DisputeStatus.ESCALATED || d.status === DisputeStatus.OPEN).length},
     {id: 'flagged', label: 'Flagged Items', count: flaggedProducts.length},
     {id: 'ai', label: 'Super Brain AI'},
     {id: 'settings', label: 'Config'}
   ];
+
+  const activeDisputes = disputes.filter(d => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.ESCALATED);
 
   return (
     <div className="space-y-8 pb-20 px-2 sm:px-0 animate-fade-in relative">
@@ -199,7 +227,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <thead className="bg-gray-50 dark:bg-slate-800/50">
                 <tr>
                    <th className="px-10 py-6 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Merchant</th>
-                   <th className="px-10 py-6 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Compliance State</th>
+                   <th className="px-10 py-6 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Performance</th>
                    <th className="px-10 py-6 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Recruitment</th>
                    <th className="px-10 py-6 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
                 </tr>
@@ -207,7 +235,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <tbody className="divide-y dark:divide-slate-800">
                 {sellers.length === 0 ? (
                   <tr><td colSpan={4} className="p-10 text-center text-gray-400 font-bold uppercase text-xs">No Sellers Registered</td></tr>
-                ) : sellers.map(u => (
+                ) : sellers.map(u => {
+                  const sales = getSellerSales(u.id);
+                  return (
                   <tr key={u.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800/20 transition-colors ${u.isSuspended ? 'bg-red-50/30 dark:bg-red-900/10' : ''}`}>
                      <td className="px-10 py-8">
                         <div className="flex items-center gap-2">
@@ -215,12 +245,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                            {u.isSuspended && <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase">Suspended</span>}
                         </div>
                         <p className="text-[10px] text-gray-400 font-black">{u.email}</p>
+                        <div className="mt-2 flex items-center gap-1">
+                          {[1,2,3,4,5].map(star => (
+                            <button 
+                              key={star}
+                              onClick={() => onUpdateUser({...u, sellerRating: star})}
+                              className={`text-sm focus:outline-none ${star <= (u.sellerRating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                        </div>
                      </td>
                      <td className="px-10 py-8">
-                        <div className="flex items-center gap-3">
-                           <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${u.verification?.identityApproved ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
-                              {u.verification?.identityApproved ? 'Authenticated' : u.verification?.verificationStatus === 'verified' ? 'Active Trial' : 'Initial Audit'}
-                           </span>
+                        <div className="space-y-2">
+                           <div className="flex items-center gap-3">
+                              <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${u.verification?.identityApproved ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                                  {u.verification?.identityApproved ? 'Authenticated' : u.verification?.verificationStatus === 'verified' ? 'Active Trial' : 'Initial Audit'}
+                              </span>
+                           </div>
+                           <p className="text-xs font-black text-indigo-600">Vol: ₦{sales.toLocaleString()}</p>
                         </div>
                      </td>
                      <td className="px-10 py-8">
@@ -241,9 +285,106 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <button onClick={() => onDeleteVendor(u.id)} className="text-red-500 text-[11px] font-black uppercase hover:underline">De-List Store</button>
                      </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
            </table>
+        </div>
+      )}
+
+      {activeTab === 'activities' && (
+        <div className="space-y-6 animate-slide-up">
+           <h3 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Live Seller Activities</h3>
+           <p className="text-xs text-gray-500 font-bold mb-4">Monitor sales performance, buyer data, and payment methods in real-time.</p>
+           
+           <div className="grid grid-cols-1 gap-6">
+              {sellers.map(seller => {
+                const sellerTxs = getSellerTransactions(seller.id);
+                const totalSales = sellerTxs.reduce((sum, t) => sum + t.amount, 0);
+                const isExpanded = expandedSellerTransactions === seller.id;
+
+                return (
+                  <div key={seller.id} className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-[2.5rem] overflow-hidden shadow-sm">
+                     <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-14 h-14 bg-indigo-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xl">{seller.storeName?.[0]}</div>
+                           <div>
+                              <h4 className="font-black text-lg uppercase dark:text-white">{seller.storeName}</h4>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{sellerTxs.length} Transactions</p>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-8">
+                           <div className="text-right">
+                              <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Gross Revenue</p>
+                              <p className="text-2xl font-black text-green-600">₦{totalSales.toLocaleString()}</p>
+                           </div>
+                           <div className="flex gap-2">
+                             <button 
+                               onClick={() => setMessagingSeller(seller)}
+                               className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition"
+                             >
+                               Send Insight
+                             </button>
+                             <button 
+                               onClick={() => setExpandedSellerTransactions(isExpanded ? null : seller.id)}
+                               className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition"
+                             >
+                               {isExpanded ? 'Hide Feed' : 'View Feed'}
+                             </button>
+                           </div>
+                        </div>
+                     </div>
+
+                     {isExpanded && (
+                        <div className="bg-gray-50 dark:bg-slate-950/30 border-t dark:border-slate-800 p-8 animate-fade-in">
+                           {sellerTxs.length === 0 ? (
+                             <p className="text-center text-gray-400 text-xs font-bold uppercase py-8">No recorded activity for this node.</p>
+                           ) : (
+                             <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                   <thead>
+                                      <tr className="border-b dark:border-slate-800">
+                                         <th className="pb-4 text-[9px] font-black uppercase text-gray-400 tracking-widest">Timestamp</th>
+                                         <th className="pb-4 text-[9px] font-black uppercase text-gray-400 tracking-widest">Buyer Identity</th>
+                                         <th className="pb-4 text-[9px] font-black uppercase text-gray-400 tracking-widest">Product Sold</th>
+                                         <th className="pb-4 text-[9px] font-black uppercase text-gray-400 tracking-widest">Settlement</th>
+                                         <th className="pb-4 text-[9px] font-black uppercase text-gray-400 tracking-widest text-right">Value</th>
+                                      </tr>
+                                   </thead>
+                                   <tbody className="divide-y dark:divide-slate-800">
+                                      {sellerTxs.map(tx => {
+                                        // Attempt to find buyer details. 
+                                        // If buyerId exists, we can look up user, otherwise rely on billing details if transaction carries them (Transaction type updated previously to include billingDetails)
+                                        const buyer = vendors.find(v => v.id === tx.buyerId);
+                                        const buyerName = buyer?.name || tx.billingDetails?.fullName || 'Guest User';
+                                        const buyerEmail = buyer?.email || tx.billingDetails?.email || 'N/A';
+
+                                        return (
+                                          <tr key={tx.id}>
+                                             <td className="py-4 text-xs font-bold dark:text-gray-300">{new Date(tx.timestamp).toLocaleString()}</td>
+                                             <td className="py-4">
+                                                <p className="text-xs font-black dark:text-white">{buyerName}</p>
+                                                <p className="text-[9px] text-gray-500">{buyerEmail}</p>
+                                             </td>
+                                             <td className="py-4 text-xs font-bold dark:text-gray-300">{tx.productName}</td>
+                                             <td className="py-4">
+                                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md ${tx.paymentMethod === 'pod' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                   {tx.paymentMethod?.replace('_', ' ') || 'Bank Transfer'}
+                                                </span>
+                                             </td>
+                                             <td className="py-4 text-xs font-black dark:text-white text-right">₦{tx.amount.toLocaleString()}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                   </tbody>
+                                </table>
+                             </div>
+                           )}
+                        </div>
+                     )}
+                  </div>
+                );
+              })}
+           </div>
         </div>
       )}
 
@@ -325,10 +466,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {activeTab === 'justice' && (
         <div className="space-y-6 animate-slide-up">
-           {disputes.length === 0 ? (
+           {activeDisputes.length === 0 ? (
              <div className="py-32 text-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed dark:border-slate-800 text-gray-400 font-black uppercase text-[10px] tracking-widest">Justice Hub Clear</div>
            ) : (
-             disputes.map(d => (
+             activeDisputes.map(d => (
                <div key={d.id} className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm flex flex-col md:flex-row gap-8 items-start">
                   <div className="flex-1 space-y-4">
                      <div className="flex items-center gap-3">
@@ -596,6 +737,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        Dismiss
                     </button>
                  </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Admin Message Modal */}
+      {messagingSeller && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative animate-slide-up">
+              <button onClick={() => setMessagingSeller(null)} className="absolute top-8 right-8 text-gray-400">✕</button>
+              <h3 className="text-2xl font-black uppercase tracking-tighter mb-2 dark:text-white">Admin Insight</h3>
+              <p className="text-xs font-bold text-gray-400 mb-6 uppercase tracking-widest">To: {messagingSeller.storeName}</p>
+              
+              <div className="space-y-4">
+                 <textarea 
+                    value={adminMessage}
+                    onChange={e => setAdminMessage(e.target.value)}
+                    placeholder="Notify seller about top performing products or store optimizations..."
+                    className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl font-medium text-xs h-40 border border-gray-200 dark:border-slate-700 outline-none"
+                    autoFocus
+                 />
+                 <button 
+                    onClick={handleSendAdminMessage}
+                    disabled={!adminMessage.trim()}
+                    className="w-full bg-indigo-600 disabled:bg-gray-300 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                 >
+                    Transmit Message
+                 </button>
               </div>
            </div>
         </div>

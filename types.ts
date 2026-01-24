@@ -71,6 +71,8 @@ export interface User {
   subscriptionExpiry?: number;
   aiConfig?: AIConfig;
   notifications?: string[]; 
+  sellerRating?: number; // 0 to 5 stars
+  monthlyReportSubscribed?: boolean;
 }
 
 export interface Review {
@@ -171,4 +173,5 @@ export interface Transaction {
   feedback?: Feedback;
   billingDetails: BillingDetails;
   deliveryType: DeliveryType;
+  buyerId?: string;
 }

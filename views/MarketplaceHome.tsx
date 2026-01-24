@@ -93,19 +93,22 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
         
         <div className="relative z-20 text-center max-w-5xl space-y-8 md:space-y-12 animate-fade-in w-full">
           <div className="inline-block px-4 py-1.5 bg-indigo-600/30 backdrop-blur-xl border border-white/20 rounded-full mb-2 animate-slide-up shadow-2xl">
-             <span className="text-white font-black text-[8px] sm:text-[10px] uppercase tracking-[0.3em] sm:tracking-[0.5em]">Trusted Global Sellers</span>
+             <span className="text-white font-black text-[8px] sm:text-[10px] uppercase tracking-[0.3em] sm:tracking-[0.5em]">The Decentralized Shopping Network</span>
           </div>
           
           <h2 className="text-4xl sm:text-6xl md:text-[8.5rem] font-black text-white tracking-tighter leading-[0.9] animate-unblur drop-shadow-2xl px-2">
             {config.heroTitle}
+            <span className="block text-xl sm:text-3xl md:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 mt-4 tracking-widest font-bold">
+               {config.heroSubtitle || 'GLOBAL COMMERCE REIMAGINED'}
+            </span>
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-8 max-w-4xl mx-auto pt-4 animate-slide-up animation-delay-300 px-2">
             {[
-              { label: 'Active Stores', value: activeStores.length + 42, suffix: '+' },
-              { label: 'Total Products', value: filteredProducts.length + 120, suffix: '+' },
-              { label: 'Verified Stores', value: 12, suffix: '' },
-              { label: 'Uptime', value: 99.9, suffix: '%' }
+              { label: 'Verified Sellers', value: activeStores.length + 150, suffix: '+' },
+              { label: 'Available Assets', value: filteredProducts.length + 850, suffix: '+' },
+              { label: 'Secure Nodes', value: 24, suffix: '/7' },
+              { label: 'Network Uptime', value: 99.9, suffix: '%' }
             ].map((stat, i) => (
               <div key={i} className="bg-white/10 backdrop-blur-2xl border border-white/10 p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-2xl hover:bg-white/20 transition-all group cursor-default">
                 <p className="text-2xl sm:text-4xl md:text-[42px] font-black text-white leading-none tracking-tighter mb-1 group-hover:text-indigo-400 transition-colors">
@@ -128,7 +131,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search collection..."
+                placeholder="Search the global registry..."
                 className="w-full bg-transparent border-none text-white font-black text-lg sm:text-xl outline-none placeholder:text-white/40 py-3 sm:py-4"
               />
             </div>
@@ -158,7 +161,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center pt-4 animate-slide-up animation-delay-700 px-4">
-             <button onClick={() => document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' })} className="w-full sm:w-auto bg-white text-slate-950 px-10 sm:px-16 py-5 rounded-full font-black text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] hover:scale-105 transition shadow-xl active:scale-95">Browse collection</button>
+             <button onClick={() => document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' })} className="w-full sm:w-auto bg-white text-slate-950 px-10 sm:px-16 py-5 rounded-full font-black text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] hover:scale-105 transition shadow-xl active:scale-95">Access Markets</button>
              {!isLoggedIn && (
                <button onClick={onBecomeSeller} className="w-full sm:w-auto bg-indigo-600/30 backdrop-blur-xl border border-indigo-500/50 text-white px-10 sm:px-16 py-5 rounded-full font-black text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] hover:bg-indigo-600 transition active:scale-95">Open Store</button>
              )}
@@ -168,7 +171,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
       <section id="stores-list" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="text-center space-y-2">
-           <h3 className="text-3xl sm:text-4xl font-black tracking-tighter dark:text-white">Verified Vendors</h3>
+           <h3 className="text-3xl sm:text-4xl font-black tracking-tighter dark:text-white">Active Protocols</h3>
            <p className="text-gray-500 font-medium text-sm px-4">Direct marketplace access for verified global distributors.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -184,11 +187,11 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
                 <div className="p-6 sm:p-8">
                    <div className="flex justify-between items-center mb-4">
                       <h4 className="text-xl sm:text-2xl font-black tracking-tighter dark:text-white">{store.name}</h4>
-                      <span className="bg-green-50 dark:bg-green-900/20 text-green-600 text-[8px] font-black uppercase px-3 py-1 rounded-full">Active</span>
+                      <span className="bg-green-50 dark:bg-green-900/20 text-green-600 text-[8px] font-black uppercase px-3 py-1 rounded-full">Live Node</span>
                    </div>
                    <p className="text-gray-500 text-xs sm:text-sm font-medium line-clamp-2 mb-6">{store.description}</p>
                    <button className="w-full py-4 bg-gray-50 dark:bg-slate-800 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">
-                      Visit Store
+                      Access Store
                    </button>
                 </div>
              </div>
@@ -199,7 +202,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
       <section id="browse" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="flex flex-col gap-6 border-b dark:border-slate-800 pb-6 sm:pb-8">
            <div>
-             <h3 className="text-3xl sm:text-4xl font-black tracking-tighter mb-2 dark:text-white">Global Feed</h3>
+             <h3 className="text-3xl sm:text-4xl font-black tracking-tighter mb-2 dark:text-white">Live Asset Feed</h3>
              <p className="text-gray-500 font-medium text-sm sm:text-base">Real-time products synced from verified stores.</p>
            </div>
            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-2 px-2">
@@ -222,7 +225,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
                product={product} 
                onClickStore={onNavigateToStore}
                isWishlisted={wishlist.includes(product.id)}
-               onToggleWishlist={isLoggedIn ? onToggleWishlist : undefined}
+               onToggleWishlist={onToggleWishlist}
                onAddToCart={onAddToCart}
              />
            ))}
