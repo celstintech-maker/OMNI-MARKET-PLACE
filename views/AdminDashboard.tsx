@@ -555,6 +555,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-medium text-xs outline-none border dark:border-slate-700"
                     />
                  </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Banner Animation Style</label>
+                        <select
+                            value={siteConfig.bannerAnimationStyle || 'fade'}
+                            onChange={(e) => onUpdateConfig({...siteConfig, bannerAnimationStyle: e.target.value as any})}
+                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                        >
+                            <option value="fade">Fade (Default)</option>
+                            <option value="zoom">Zoom Scale</option>
+                            <option value="slide">Slide Transition</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Transition Speed (ms)</label>
+                        <input 
+                            type="number"
+                            value={siteConfig.bannerTransitionSpeed || 1000}
+                            onChange={(e) => onUpdateConfig({...siteConfig, bannerTransitionSpeed: parseInt(e.target.value) || 1000})}
+                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Slide Interval (ms)</label>
+                        <input 
+                            type="number"
+                            value={siteConfig.bannerInterval || 5000}
+                            onChange={(e) => onUpdateConfig({...siteConfig, bannerInterval: parseInt(e.target.value) || 5000})}
+                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                        />
+                    </div>
+                 </div>
+
                  <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Ad Banners (Upload)</label>
                     <input 

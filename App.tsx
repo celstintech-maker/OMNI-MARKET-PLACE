@@ -24,6 +24,9 @@ const INITIAL_CONFIG: SiteConfig = {
   heroSubtitle: 'GLOBAL COMMERCE REIMAGINED',
   heroBackgroundUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop',
   adBanners: [],
+  bannerAnimationStyle: 'fade', // Default animation
+  bannerTransitionSpeed: 1000,
+  bannerInterval: 5000,
   announcement: '🎉 Global Shipping Protocols Active - 20% Off Fees',
   footerText: 'Decentralized commerce infrastructure for the modern world.',
   contactEmail: 'support@omni.link',

@@ -57,40 +57,50 @@ const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], cus
   );
 };
 
-const BannerSlider = ({ banners }: { banners: string[] }) => {
+const BannerSlider = ({ banners, animationStyle = 'fade', transitionSpeed = 1000, interval = 5000 }: { banners: string[], animationStyle?: 'fade' | 'slide' | 'zoom', transitionSpeed?: number, interval?: number }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     if (!banners || banners.length === 0) return;
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % banners.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [banners, banners.length]); // Added banners.length dependency
+    }, interval);
+    return () => clearInterval(timer);
+  }, [banners, banners.length, interval]);
 
   if (!banners || banners.length === 0) return null;
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 -mt-8 relative z-30 animate-slide-up">
       <div className="relative w-full aspect-[21/9] md:aspect-[3/1] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 dark:border-slate-800 bg-gray-100 dark:bg-slate-900 group">
-        {banners.map((banner, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              index === currentIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <img
-              src={banner}
-              alt={`Ad Banner ${index + 1}`}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
-          </div>
-        ))}
+        {banners.map((banner, index) => {
+          let animClass = '';
+          if (animationStyle === 'zoom') {
+             animClass = index === currentIndex ? 'scale-100 opacity-100 z-10' : 'scale-110 opacity-0 z-0';
+          } else if (animationStyle === 'slide') {
+             animClass = index === currentIndex ? 'translate-x-0 z-10' : 'translate-x-full z-0';
+          } else {
+             animClass = index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0';
+          }
+
+          return (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-all ease-in-out transform ${animClass}`}
+              style={{ transitionDuration: `${transitionSpeed}ms` }}
+            >
+              <img
+                src={banner}
+                alt={`Ad Banner ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
+            </div>
+          );
+        })}
         
         {/* Indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
           {banners.map((_, idx) => (
             <button
               key={idx}
@@ -109,20 +119,20 @@ const BannerSlider = ({ banners }: { banners: string[] }) => {
           <>
             <button 
               onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length); }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-20"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % banners.length); }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-20"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
         )}
         
-        <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+        <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 z-20">
            <span className="text-[8px] font-black uppercase tracking-widest text-white">Sponsored</span>
         </div>
       </div>
@@ -243,7 +253,12 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
       </section>
 
       {/* Verified Partner Banners Widget */}
-      <BannerSlider banners={config.adBanners} />
+      <BannerSlider 
+        banners={config.adBanners} 
+        animationStyle={config.bannerAnimationStyle} 
+        transitionSpeed={config.bannerTransitionSpeed} 
+        interval={config.bannerInterval}
+      />
 
       <section id="stores-list" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="text-center space-y-2">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole, User, SiteConfig } from '../types';
 import { Icons } from '../constants';
 
@@ -20,6 +20,24 @@ export const Layout: React.FC<LayoutProps> = ({
   children, user, onLogout, onNavigate, currentView, theme, onToggleTheme, cartCount, onOpenCart, config, wishlistCount = 0
 }) => {
   const [footerExpanded, setFooterExpanded] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const navItems = [
     { label: 'Marketplace', view: 'home', icon: <Icons.Home /> },
@@ -135,6 +153,19 @@ export const Layout: React.FC<LayoutProps> = ({
       <main className="flex-1 max-w-7xl mx-auto px-4 py-6 sm:py-8 w-full pb-32">
         {children}
       </main>
+
+      {/* Go To Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-24 left-4 sm:left-8 z-[140] bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-indigo-600 dark:text-indigo-400 p-4 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/20 dark:border-slate-700 hover:scale-110 hover:-translate-y-1 transition-all duration-300 group animate-fade-in"
+          aria-label="Scroll to top"
+        >
+          <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
+        </button>
+      )}
 
       {/* Slide-Up Footer Drawer */}
       <footer className={`fixed bottom-0 left-0 right-0 z-[110] bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 transition-all duration-500 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] ${footerExpanded ? 'max-h-[85vh] overflow-y-auto' : 'max-h-16 overflow-hidden'}`}>

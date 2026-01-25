@@ -194,6 +194,9 @@ export interface SiteConfig {
   heroSubtitle: string;
   heroBackgroundUrl?: string;
   adBanners: string[];
+  bannerAnimationStyle?: 'fade' | 'slide' | 'zoom'; // Custom animation style
+  bannerTransitionSpeed?: number; // Duration in ms
+  bannerInterval?: number; // Interval in ms
   announcement: string;
   footerText: string;
   contactEmail: string;
