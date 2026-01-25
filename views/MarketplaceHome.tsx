@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { ProductCard } from '../components/ProductCard';
-import { Product, Store, User, CartItem } from '../types';
-import { SiteConfig } from '../App';
+import { Product, Store, User, CartItem, SiteConfig } from '../types';
 
 // Define the interface for MarketplaceHome component props
 interface MarketplaceHomeProps {

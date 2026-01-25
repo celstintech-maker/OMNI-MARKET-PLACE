@@ -1,8 +1,6 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { CartItem, Transaction, BillingDetails, DeliveryType, User } from '../types';
+import { CartItem, Transaction, BillingDetails, DeliveryType, User, SiteConfig } from '../types';
 import { Icons, PAYMENT_METHODS } from '../constants';
-import { SiteConfig } from '../App';
 
 interface CartViewProps {
   cart: CartItem[];

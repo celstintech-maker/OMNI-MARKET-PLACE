@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus } from './types';
+import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig } from './types';
 import { CATEGORIES, MOCK_PRODUCTS, MOCK_STORES } from './constants';
 import { Layout } from './components/Layout';
 import { MarketplaceHome } from './views/MarketplaceHome';
@@ -17,29 +17,6 @@ import { LegalView } from './views/LegalView';
 import { AboutUsView } from './views/AboutUsView';
 import { ServicesView } from './views/ServicesView';
 import { ChatSupport } from './components/ChatSupport';
-
-export interface SiteConfig {
-  siteName: string;
-  heroTitle: string;
-  heroSubtitle: string;
-  heroBackgroundUrl?: string;
-  adBanners: string[];
-  announcement: string;
-  footerText: string;
-  contactEmail: string;
-  contactPhone: string;
-  adminBankDetails: string;
-  paystackPublicKey?: string;
-  flutterwavePublicKey?: string;
-  stripePublicKey?: string;
-  rentalPrice: number;
-  commissionRate: number;
-  taxEnabled: boolean;
-  taxRate: number;
-  autoFlaggingEnabled: boolean;
-  siteLocked: boolean;
-  siteLockPassword?: string;
-}
 
 const INITIAL_CONFIG: SiteConfig = {
   siteName: 'OMNI MARKET',
@@ -58,7 +35,8 @@ const INITIAL_CONFIG: SiteConfig = {
   taxRate: 0.075,
   autoFlaggingEnabled: true,
   siteLocked: true, // Default to locked
-  siteLockPassword: '6561' // Updated default for demo
+  siteLockPassword: '6561', // Updated default for demo
+  geminiApiKey: '' // Default empty
 };
 
 const INITIAL_USERS: User[] = [
@@ -83,18 +61,59 @@ function App() {
   const [currentView, setCurrentView] = useState<string>('home');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  // Load State from LocalStorage or Fallback to Initial Constants
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('omni_users');
+    return saved ? JSON.parse(saved) : INITIAL_USERS;
+  });
+  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [stores, setStores] = useState<Store[]>(MOCK_STORES);
+  
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('omni_products');
+    return saved ? JSON.parse(saved) : MOCK_PRODUCTS;
+  });
+
+  const [stores, setStores] = useState<Store[]>(() => {
+    const saved = localStorage.getItem('omni_stores');
+    return saved ? JSON.parse(saved) : MOCK_STORES;
+  });
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
-  const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_CONFIG);
+  const [siteConfig, setSiteConfig] = useState<SiteConfig>(() => {
+    // Load config from local storage to persist API key
+    const savedConfig = localStorage.getItem('omni_config');
+    return savedConfig ? { ...INITIAL_CONFIG, ...JSON.parse(savedConfig) } : INITIAL_CONFIG;
+  });
+  
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
+
+  // Persistence Effects
+  useEffect(() => { localStorage.setItem('omni_users', JSON.stringify(users)); }, [users]);
+  useEffect(() => { localStorage.setItem('omni_products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { localStorage.setItem('omni_stores', JSON.stringify(stores)); }, [stores]);
+  useEffect(() => { localStorage.setItem('omni_config', JSON.stringify(siteConfig)); }, [siteConfig]);
+
+  // Session Restore ("Remember Login")
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem('omni_session_id');
+    if (savedSessionId) {
+      const returningUser = users.find(u => u.id === savedSessionId);
+      if (returningUser) {
+        setCurrentUser(returningUser);
+        // Auto-redirect to dashboard if they are a vendor/admin
+        if (returningUser.role === UserRole.ADMIN) setCurrentView('admin-dashboard');
+        else if (returningUser.role === UserRole.SELLER) setCurrentView('seller-dashboard');
+        else if (returningUser.role === UserRole.STAFF) setCurrentView('staff-dashboard');
+        // Buyers usually stay on home, but let's leave them on home
+      }
+    }
+  }, []);
 
   const freshCurrentUser = useMemo(() => {
     return users.find(u => u.id === currentUser?.id) || currentUser;
@@ -103,30 +122,31 @@ function App() {
   const activeStore = stores.find(s => s.name === (currentView.startsWith('store/') ? decodeURIComponent(currentView.split('/')[1]) : ''));
 
   const handleLogin = (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string, extraDetails?: any) => {
-    // Exact match for role-specific login
-    const existing = users.find(u => u.email === email && u.role === role);
+    // SMART LOGIN: 
+    // 1. Search for user by email ONLY (ignore the role toggle on the UI).
+    const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     
     if (existing) {
+      // User exists -> Attempt Login
       if (existing.pin === pin) {
         setCurrentUser(existing);
-        setCurrentView(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
+        localStorage.setItem('omni_session_id', existing.id); // Save Session
+        
+        // Redirect based on their ACTUAL registered role
+        if (existing.role === UserRole.ADMIN) setCurrentView('admin-dashboard');
+        else if (existing.role === UserRole.SELLER) setCurrentView('seller-dashboard');
+        else if (existing.role === UserRole.BUYER) setCurrentView('home');
+        else setCurrentView('staff-dashboard');
       } else {
         alert("Invalid PIN");
       }
     } else {
-      // Check if email exists under a DIFFERENT role to prevent duplicate accounts/confusion
-      const emailTaken = users.find(u => u.email === email);
-      if (emailTaken) {
-         alert(`Account exists as a ${emailTaken.role}. Please switch the toggle above to '${emailTaken.role}' to log in.`);
-         return;
-      }
-
-      // Proceed with Registration
+      // User does NOT exist -> Proceed with Registration
       const newUser: User = {
         id: `u-${Date.now()}`,
         name: extraDetails?.fullName || email.split('@')[0],
         email,
-        role,
+        role, // Use the role selected in the registration form
         pin,
         storeName: role === UserRole.SELLER ? storeName : undefined,
         passwordHint: hint,
@@ -144,10 +164,13 @@ function App() {
           productSamples: []
         } : undefined
       };
-      setUsers([...users, newUser]);
+      
+      setUsers(prev => [...prev, newUser]);
       setCurrentUser(newUser);
+      localStorage.setItem('omni_session_id', newUser.id); // Save Session
+
       if (role === UserRole.SELLER && storeName) {
-        setStores([...stores, {
+        setStores(prev => [...prev, {
           id: `st-${Date.now()}`,
           sellerId: newUser.id,
           name: storeName,
@@ -157,9 +180,15 @@ function App() {
         }]);
       }
       
-      // Redirect to appropriate dashboard immediately after registration
+      // Redirect
       setCurrentView(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
     }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('omni_session_id'); // Clear Session
+    setCurrentView('home');
   };
 
   const toggleTheme = () => {
@@ -238,7 +267,7 @@ function App() {
     <div className={theme}>
       <Layout 
         user={freshCurrentUser} 
-        onLogout={() => { setCurrentUser(null); setCurrentView('home'); }} 
+        onLogout={handleLogout} 
         onNavigate={handleNavigate} 
         currentView={currentView} 
         theme={theme} 
@@ -393,6 +422,7 @@ function App() {
            }));
         }}
         theme={theme}
+        apiKey={siteConfig.geminiApiKey}
       />
     </div>
   );

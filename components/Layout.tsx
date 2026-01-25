@@ -1,8 +1,6 @@
-
 import React, { useState } from 'react';
-import { UserRole, User } from '../types';
+import { UserRole, User, SiteConfig } from '../types';
 import { Icons } from '../constants';
-import { SiteConfig } from '../App';
 
 interface LayoutProps {
   children: React.ReactNode;

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { SiteConfig } from '../App';
+import { SiteConfig } from '../types';
 
 interface LegalViewProps {
   view: 'privacy' | 'terms' | 'sourcing' | 'cookies';

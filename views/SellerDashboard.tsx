@@ -1,7 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Product, User, Dispute, Transaction, AIConfig, BankDetails, Review } from '../types';
+import { Product, User, Dispute, Transaction, AIConfig, BankDetails, Review, SiteConfig } from '../types';
 import { Icons, CATEGORIES, PAYMENT_METHODS, COUNTRY_CURRENCY_MAP } from '../constants';
-import { SiteConfig } from '../App';
 
 interface SellerDashboardProps {
   user: User;

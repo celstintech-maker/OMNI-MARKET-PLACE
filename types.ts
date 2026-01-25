@@ -186,3 +186,27 @@ export interface Transaction {
   deliveryType: DeliveryType;
   buyerId?: string;
 }
+
+export interface SiteConfig {
+  siteName: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroBackgroundUrl?: string;
+  adBanners: string[];
+  announcement: string;
+  footerText: string;
+  contactEmail: string;
+  contactPhone: string;
+  adminBankDetails: string;
+  paystackPublicKey?: string;
+  flutterwavePublicKey?: string;
+  stripePublicKey?: string;
+  rentalPrice: number;
+  commissionRate: number;
+  taxEnabled: boolean;
+  taxRate: number;
+  autoFlaggingEnabled: boolean;
+  siteLocked: boolean;
+  siteLockPassword?: string;
+  geminiApiKey?: string; // Added for manual API Key override
+}

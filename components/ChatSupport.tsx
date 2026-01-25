@@ -15,6 +15,7 @@ interface ChatSupportProps {
   forcedChannelId?: string;
   aiInstructions?: string[]; 
   decayMinutes?: number; 
+  apiKey?: string; // Added prop for fallback API key
 }
 
 export const ChatSupport: React.FC<ChatSupportProps> = ({ 
@@ -27,7 +28,8 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   isEmbedded = false,
   forcedChannelId,
   aiInstructions = [],
-  decayMinutes = 0
+  decayMinutes = 0,
+  apiKey
 }) => {
   const [isOpen, setIsOpen] = useState(isEmbedded);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(forcedChannelId || null);
@@ -85,14 +87,15 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   };
 
   const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
-    const apiKey = process.env.API_KEY;
+    // Prioritize Env Var, then Fallback Prop
+    const effectiveKey = process.env.API_KEY || apiKey;
     
-    if (!apiKey) {
+    if (!effectiveKey) {
       onSendMessage?.(channelId, {
         id: `ai-err-${Date.now()}`,
         senderId: 'ai-agent',
         senderName: 'System',
-        text: "System Alert: AI Agent offline. API Key configuration missing on server.",
+        text: "System Alert: AI Agent offline. API Key configuration missing on server or Admin settings.",
         timestamp: Date.now()
       });
       return;
@@ -100,7 +103,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
 
     setIsThinking(true);
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: effectiveKey });
       const isSystemSupport = channelId === 'system';
       
       const systemPrompt = isSystemSupport 

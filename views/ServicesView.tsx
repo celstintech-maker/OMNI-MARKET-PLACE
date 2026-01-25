@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { SiteConfig } from '../App';
+import { SiteConfig } from '../types';
 
 export const ServicesView: React.FC<{ config: SiteConfig }> = ({ config }) => {
   const services = [
