@@ -36,6 +36,8 @@ export interface SiteConfig {
   taxEnabled: boolean;
   taxRate: number;
   autoFlaggingEnabled: boolean;
+  siteLocked: boolean;
+  siteLockPassword?: string;
 }
 
 const INITIAL_CONFIG: SiteConfig = {
@@ -52,7 +54,9 @@ const INITIAL_CONFIG: SiteConfig = {
   commissionRate: 0.05,
   taxEnabled: true,
   taxRate: 0.075,
-  autoFlaggingEnabled: true
+  autoFlaggingEnabled: true,
+  siteLocked: true, // Default to locked
+  siteLockPassword: '6561' // Updated default for demo
 };
 
 const INITIAL_USERS: User[] = [
@@ -63,7 +67,8 @@ const INITIAL_USERS: User[] = [
   {
     id: 's1', name: 'Tech Seller', email: 'seller@tech.com', role: UserRole.SELLER, pin: '0000', storeName: 'TechHub',
     verification: { businessName: 'Tech Hub Inc', businessAddress: '123 Tech Lane', country: 'Nigeria', phoneNumber: '1234567890', profilePictureUrl: '', verificationStatus: 'verified', identityApproved: true, productSamples: [] },
-    rentPaid: true, sellerRating: 4.8, enabledPaymentMethods: ['bank_transfer', 'stripe', 'pod']
+    rentPaid: true, sellerRating: 4.8, enabledPaymentMethods: ['bank_transfer', 'stripe', 'pod'],
+    country: 'Nigeria', currency: 'NGN', currencySymbol: '₦'
   },
   {
     id: 'b1', name: 'John Doe', email: 'buyer@gmail.com', role: UserRole.BUYER, pin: '1234'
@@ -71,6 +76,8 @@ const INITIAL_USERS: User[] = [
 ];
 
 function App() {
+  const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
+  const [lockPassword, setLockPassword] = useState('');
   const [currentView, setCurrentView] = useState<string>('home');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
@@ -172,6 +179,43 @@ function App() {
       notifications: [message, ...(u.notifications || [])]
     } : u));
   };
+
+  // Site Lock Rendering
+  if (!isSiteUnlocked && siteConfig.siteLocked) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 ${theme}`}>
+        <div className="max-w-md w-full space-y-8 text-center animate-slide-up">
+          <div className="w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(79,70,229,0.5)]">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          </div>
+          <h1 className="text-4xl font-black uppercase tracking-tighter">Site Under Construction</h1>
+          <p className="text-gray-400 font-medium">Access is restricted to authorized personnel only.</p>
+          <div className="flex gap-2">
+            <input 
+              type="password" 
+              value={lockPassword}
+              onChange={(e) => setLockPassword(e.target.value)}
+              placeholder="Enter Access Key"
+              className="flex-1 p-4 bg-white/10 rounded-xl outline-none border border-white/10 focus:border-indigo-500 transition-colors text-center font-black tracking-widest placeholder:font-normal"
+            />
+            <button 
+              onClick={() => {
+                if (lockPassword === siteConfig.siteLockPassword) {
+                  setIsSiteUnlocked(true);
+                } else {
+                  alert("Access Denied");
+                }
+              }}
+              className="bg-indigo-600 px-6 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-500 transition-colors"
+            >
+              Unlock
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-600 uppercase tracking-[0.5em] mt-8">Secure Protocol Active</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={theme}>

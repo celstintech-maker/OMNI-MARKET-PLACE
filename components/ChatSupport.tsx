@@ -69,7 +69,17 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
 
   const handleAIService = async (userMessage: string, channelId: string) => {
     const apiKey = process.env.API_KEY;
-    if (!apiKey) return;
+    
+    if (!apiKey) {
+      onSendMessage?.(channelId, {
+        id: `ai-err-${Date.now()}`,
+        senderId: 'ai-agent',
+        senderName: 'System',
+        text: "System Alert: AI Agent offline. API Key configuration missing on server.",
+        timestamp: Date.now()
+      });
+      return;
+    }
 
     setIsThinking(true);
     try {
@@ -99,6 +109,13 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
       updateActivity();
     } catch (error) {
       console.error(error);
+      onSendMessage?.(channelId, {
+        id: `ai-err-${Date.now()}`,
+        senderId: 'ai-agent',
+        senderName: 'System',
+        text: "Agent connection interrupted. Please try again.",
+        timestamp: Date.now()
+      });
     } finally {
       setIsThinking(false);
     }
@@ -225,7 +242,9 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
                   max-w-[85%] px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed
                   ${msg.senderId === activeUser.id 
                     ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg' 
-                    : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
+                    : msg.senderId === 'ai-agent' && msg.id.includes('err')
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900 rounded-tl-none shadow-sm'
+                      : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
                   }
                 `}>
                   {msg.text}

@@ -70,6 +70,7 @@ export const MOCK_PRODUCTS = [
     name: 'Wireless Noise Cancelling Headphones',
     description: 'Experience premium sound quality with deep bass and clear highs.',
     price: 299.99,
+    stock: 50,
     category: 'Electronics',
     imageUrl: 'https://picsum.photos/400/400?random=1',
     storeName: 'TechHub',
@@ -81,6 +82,7 @@ export const MOCK_PRODUCTS = [
     name: 'Minimalist Leather Wallet',
     description: 'Handcrafted genuine leather wallet for the modern professional.',
     price: 45000.00,
+    stock: 20,
     category: 'Fashion',
     imageUrl: 'https://picsum.photos/400/400?random=3',
     storeName: 'StyleCo',
@@ -89,8 +91,8 @@ export const MOCK_PRODUCTS = [
 ];
 
 export const MOCK_STORES = [
-  { id: 'st1', sellerId: 's1', name: 'TechHub', description: 'Gadgets for the future.', bannerUrl: 'https://picsum.photos/1200/400?random=10', status: 'active' },
-  { id: 'st2', sellerId: 's2', name: 'StyleCo', description: 'Timeless fashion for everyone.', bannerUrl: 'https://picsum.photos/1200/400?random=11', status: 'active' }
+  { id: 'st1', sellerId: 's1', name: 'TechHub', description: 'Gadgets for the future.', bannerUrl: 'https://picsum.photos/1200/400?random=10', status: 'active' as const },
+  { id: 'st2', sellerId: 's2', name: 'StyleCo', description: 'Timeless fashion for everyone.', bannerUrl: 'https://picsum.photos/1200/400?random=11', status: 'active' as const }
 ];
 
 export const Icons = {

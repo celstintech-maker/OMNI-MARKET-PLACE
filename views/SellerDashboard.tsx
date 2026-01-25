@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Product, User, Dispute, Transaction, AIConfig, BankDetails, Review } from '../types';
-import { Icons, CATEGORIES, PAYMENT_METHODS } from '../constants';
+import { Icons, CATEGORIES, PAYMENT_METHODS, COUNTRY_CURRENCY_MAP } from '../constants';
 import { SiteConfig } from '../App';
 
 interface SellerDashboardProps {
@@ -37,6 +37,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [profilePicPreview, setProfilePicPreview] = useState<string | null>(user.verification?.profilePictureUrl || null);
   const [storeNameDraft, setStoreNameDraft] = useState(user.storeName || '');
   
+  // Payment Gateway Local State
+  const [gatewayKeys, setGatewayKeys] = useState({
+    paystack: user.sellerPaymentConfig?.paystackPublicKey || '',
+    flutterwave: user.sellerPaymentConfig?.flutterwavePublicKey || '',
+    stripe: user.sellerPaymentConfig?.stripePublicKey || ''
+  });
+
   const identityDocRef = useRef<HTMLInputElement>(null);
   const profilePicRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +148,30 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     alert("Store Details Updated.");
   };
 
+  const handleUpdatePaymentKeys = () => {
+    onUpdateUser({
+      ...user,
+      sellerPaymentConfig: {
+        paystackPublicKey: gatewayKeys.paystack,
+        flutterwavePublicKey: gatewayKeys.flutterwave,
+        stripePublicKey: gatewayKeys.stripe
+      }
+    });
+    alert("Payment Gateway Keys Updated.");
+  };
+
+  const handleCountryChange = (country: string) => {
+    const currencyData = COUNTRY_CURRENCY_MAP[country];
+    if (currencyData) {
+      onUpdateUser({
+        ...user,
+        country: country,
+        currency: currencyData.code,
+        currencySymbol: currencyData.symbol
+      });
+    }
+  };
+
   const handleUpdateAI = (config: Partial<AIConfig>) => {
     onUpdateUser({
       ...user,
@@ -181,6 +212,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           category: category || 'Uncategorized',
           description: `Bulk uploaded item: ${name}`,
           imageUrl: 'https://picsum.photos/400/400', // Placeholder
+          currencySymbol: user.currencySymbol // Inherit currency
         } as Product);
       }
     }
@@ -262,10 +294,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   }
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20 relative">
+    <div className="space-y-8 animate-fade-in pb-20 relative px-2 sm:px-0">
       {/* Low Stock Warning */}
       {lowStockProducts.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-6 shadow-lg animate-slide-up flex justify-between items-center">
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-6 shadow-lg animate-slide-up flex justify-between items-center rounded-2xl">
            <div>
              <h3 className="text-red-700 dark:text-red-400 font-black uppercase tracking-widest text-xs">Stock Alert: {lowStockProducts.length} Items Critical</h3>
              <p className="text-red-600/70 dark:text-red-300/70 text-[10px] font-bold mt-1">
@@ -278,7 +310,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
       {/* Verification Warning - Classic CSS */}
       {!user.verification?.govDocumentUrl && (
-        <div className="bg-[#fef9c3] dark:bg-yellow-900/30 border-4 border-double border-[#854d0e] dark:border-yellow-600 text-[#854d0e] dark:text-yellow-500 p-6 text-center font-serif shadow-xl animate-bounce">
+        <div className="bg-[#fef9c3] dark:bg-yellow-900/30 border-4 border-double border-[#854d0e] dark:border-yellow-600 text-[#854d0e] dark:text-yellow-500 p-6 text-center font-serif shadow-xl animate-bounce rounded-2xl">
            <h3 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-[#854d0e] dark:border-yellow-600 inline-block mb-2 px-4">Notice of Compliance</h3>
            <p className="text-sm italic font-medium mt-2">
              Attention Merchant: Your establishment has not submitted the required identity documents. 
@@ -330,7 +362,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       <div className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-gray-200 dark:border-slate-800 pb-6 gap-6">
         <div>
            <div className="flex items-center gap-4 mb-2">
-             <h2 className="text-5xl font-black tracking-tighter uppercase leading-none dark:text-white">{user.storeName || 'Merchant'} Store</h2>
+             <h2 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-none dark:text-white">{user.storeName || 'Merchant'} Store</h2>
              {/* Seller Rating Display */}
              {sellerRating > 0 && (
                 <div className="bg-yellow-100 dark:bg-yellow-900/30 px-3 py-1 rounded-full flex items-center gap-1">
@@ -343,23 +375,24 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Live URL: <span className="text-indigo-600 dark:text-indigo-400">omni.link/#/store/{encodeURIComponent(user.storeName || '')}</span>
            </p>
-           <div className="flex gap-6 mt-6 overflow-x-auto no-scrollbar">
+           {/* Mobile Block Menu */}
+           <div className="grid grid-cols-2 md:flex gap-2 md:gap-6 mt-6 md:overflow-x-auto no-scrollbar">
              {['inventory', 'orders', 'ai', 'finance', 'compliance', 'settings'].map(tab => (
                <button 
                 key={tab} 
                 onClick={() => { setActiveTab(tab as any); setFilterLowStock(false); }} 
-                className={`pb-2 text-[10px] uppercase tracking-widest font-black border-b-2 transition-all whitespace-nowrap ${activeTab === tab ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                className={`py-3 md:pb-2 text-[10px] uppercase tracking-widest font-black border border-gray-200 dark:border-slate-800 rounded-xl md:rounded-none md:border-0 md:border-b-2 transition-all whitespace-nowrap text-center ${activeTab === tab ? 'bg-indigo-600 text-white md:bg-transparent md:border-indigo-600 md:text-indigo-600 dark:md:text-indigo-400 dark:md:border-indigo-400' : 'bg-gray-50 dark:bg-slate-800 md:bg-transparent md:border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                >
                  {tab}
                </button>
              ))}
            </div>
         </div>
-        <div className="flex gap-2">
-            <button onClick={() => setShowBulkModal(true)} className="bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition">
-               Bulk Upload (50+)
+        <div className="flex gap-2 w-full md:w-auto">
+            <button onClick={() => setShowBulkModal(true)} className="flex-1 md:flex-none bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-4 md:px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition">
+               Bulk Upload
             </button>
-            <button onClick={openAddModal} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-xl hover:scale-105 transition">
+            <button onClick={openAddModal} className="flex-1 md:flex-none bg-indigo-600 text-white px-4 md:px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:scale-105 transition">
                <Icons.Plus /> Add Product
             </button>
         </div>
@@ -393,17 +426,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                           <span className="text-red-600 dark:text-white font-black uppercase text-xs">Flagged by Community</span>
                        </div>
                      )}
-                     {/* Wishlist Icon (Visual) */}
-                     <div className="absolute top-2 left-2 z-10">
-                        <div className="bg-white/80 dark:bg-slate-800/80 p-2 rounded-full text-gray-300 dark:text-gray-600">
-                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                        </div>
-                     </div>
-
                      <img src={p.imageUrl} className="w-16 h-16 rounded-2xl object-cover" alt="" />
                      <div className="flex-1">
                         <p className="font-black text-xs uppercase mb-1 truncate dark:text-white">{p.name}</p>
-                        <p className="text-indigo-600 dark:text-indigo-400 font-black text-xs">₦{p.price.toLocaleString()}</p>
+                        <p className="text-indigo-600 dark:text-indigo-400 font-black text-xs">{p.currencySymbol || '₦'}{p.price.toLocaleString()}</p>
                         <p className="text-[9px] text-gray-400 mt-1">Stock: {p.stock}</p>
                         <div className="flex gap-2 mt-2">
                            <button onClick={() => openEditModal(p)} className="text-[8px] font-black uppercase text-indigo-500 hover:underline">Edit</button>
@@ -422,11 +448,11 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800">
                  <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Gross Yield</p>
-                 <p className="text-3xl font-black dark:text-white">₦{grossSales.toLocaleString()}</p>
+                 <p className="text-3xl font-black dark:text-white">{user.currencySymbol || '₦'}{grossSales.toLocaleString()}</p>
               </div>
               <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white">
                  <p className="text-[10px] font-black uppercase opacity-60 mb-1">Net Wallet Balance</p>
-                 <p className="text-3xl font-black">₦{netEarnings.toLocaleString()}</p>
+                 <p className="text-3xl font-black">{user.currencySymbol || '₦'}{netEarnings.toLocaleString()}</p>
               </div>
               <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-4">
                  <button onClick={generateReport} className="w-full bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest">
@@ -454,7 +480,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                                    <p className="text-[9px] text-gray-400 font-bold uppercase">{item.count} Units Sold</p>
                                 </div>
                              </div>
-                             <p className="font-black text-xs text-indigo-600">₦{item.revenue.toLocaleString()}</p>
+                             <p className="font-black text-xs text-indigo-600">{user.currencySymbol || '₦'}{item.revenue.toLocaleString()}</p>
                           </div>
                        ))}
                     </div>
@@ -468,6 +494,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
+      {/* Orders, Compliance, AI Tabs (keeping content similar but ensuring mobile padding) */}
       {activeTab === 'orders' && (
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
            <div className="p-8 border-b border-gray-100 dark:border-slate-800">
@@ -488,7 +515,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                            <p className="font-black uppercase text-sm dark:text-white">{t.productName}</p>
                            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Via: {t.paymentMethod.replace('_', ' ')}</p>
                         </div>
-                        <p className="text-xl font-black dark:text-white">₦{t.amount.toLocaleString()}</p>
+                        <p className="text-xl font-black dark:text-white">{user.currencySymbol || '₦'}{t.amount.toLocaleString()}</p>
                      </div>
                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                         <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 mb-1">Billing & Delivery:</p>
@@ -572,7 +599,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slide-up">
            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-6">
               <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Gemini Agent Config</h3>
-              <p className="text-[10px] text-gray-500 font-bold">Configure your automated store assistant.</p>
               
               <div className="space-y-4">
                  <div className="space-y-1">
@@ -639,35 +665,64 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         <div className="space-y-8 animate-slide-up">
            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-8">
               <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Store Identity</h3>
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row gap-4">
                  <input 
                    value={storeNameDraft}
                    onChange={(e) => setStoreNameDraft(e.target.value)}
                    className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl font-bold border border-gray-200 dark:border-slate-700 outline-none"
                    placeholder="Store Name"
                  />
-                 <button onClick={handleUpdateStore} className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest">Update</button>
+                 <select 
+                   value={user.country || 'Nigeria'}
+                   onChange={(e) => handleCountryChange(e.target.value)}
+                   className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl font-bold border border-gray-200 dark:border-slate-700 outline-none"
+                 >
+                   {Object.keys(COUNTRY_CURRENCY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+                 <button onClick={handleUpdateStore} className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Update</button>
               </div>
            </div>
 
-           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-6">
-              <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Payment Gateways</h3>
-              <p className="text-[10px] font-bold text-gray-400">Enable methods you wish to accept. Bank Transfer is enabled by default via the Central Hub.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                 {PAYMENT_METHODS.map(method => (
-                    <button 
-                       key={method.id}
-                       onClick={() => handleTogglePaymentMethod(method.id)}
-                       className={`p-4 rounded-xl border-2 text-left transition-all ${user.enabledPaymentMethods?.includes(method.id) ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600'}`}
-                    >
-                       <div className="flex justify-between items-center mb-2">
-                          <span className="text-2xl">{method.icon}</span>
-                          {user.enabledPaymentMethods?.includes(method.id) && <span className="text-indigo-600 dark:text-indigo-400">✓</span>}
-                       </div>
-                       <p className={`text-[10px] font-black uppercase tracking-widest ${user.enabledPaymentMethods?.includes(method.id) ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>{method.name}</p>
-                    </button>
-                 ))}
-              </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Payment Gateways</h3>
+                <p className="text-[10px] font-bold text-gray-400">Select methods to accept.</p>
+                <div className="grid grid-cols-1 gap-4">
+                   {PAYMENT_METHODS.map(method => (
+                      <button 
+                         key={method.id}
+                         onClick={() => handleTogglePaymentMethod(method.id)}
+                         className={`p-4 rounded-xl border-2 text-left transition-all ${user.enabledPaymentMethods?.includes(method.id) ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600'}`}
+                      >
+                         <div className="flex justify-between items-center mb-2">
+                            <span className="text-2xl">{method.icon}</span>
+                            {user.enabledPaymentMethods?.includes(method.id) && <span className="text-indigo-600 dark:text-indigo-400">✓</span>}
+                         </div>
+                         <p className={`text-[10px] font-black uppercase tracking-widest ${user.enabledPaymentMethods?.includes(method.id) ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>{method.name}</p>
+                      </button>
+                   ))}
+                </div>
+             </div>
+
+             <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Gateway Configuration</h3>
+                <p className="text-[10px] font-bold text-gray-400">Enter your API keys to receive payments directly.</p>
+                <div className="space-y-4">
+                   <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Paystack Public Key</label>
+                      <input value={gatewayKeys.paystack} onChange={e => setGatewayKeys({...gatewayKeys, paystack: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] outline-none border dark:border-slate-700" placeholder="pk_live_..." />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Flutterwave Public Key</label>
+                      <input value={gatewayKeys.flutterwave} onChange={e => setGatewayKeys({...gatewayKeys, flutterwave: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] outline-none border dark:border-slate-700" placeholder="FLWPUBK_..." />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Stripe Public Key</label>
+                      <input value={gatewayKeys.stripe} onChange={e => setGatewayKeys({...gatewayKeys, stripe: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] outline-none border dark:border-slate-700" placeholder="pk_live_..." />
+                   </div>
+                   <button onClick={handleUpdatePaymentKeys} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest mt-2">Save Keys</button>
+                </div>
+             </div>
            </div>
         </div>
       )}
@@ -685,7 +740,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Valuation (₦)</label>
+                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Valuation ({user.currencySymbol || '₦'})</label>
                        <input type="number" placeholder="Price" className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl font-bold border border-gray-200 dark:border-slate-700 outline-none" value={newListing.price} onChange={e => setNewListing({...newListing, price: e.target.value})} />
                     </div>
                     <div className="space-y-1">
@@ -733,7 +788,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                       imageUrl: newListing.imageUrl,
                       description: newListing.description,
                       gallery,
-                      videoUrl: newListing.videoUrl
+                      videoUrl: newListing.videoUrl,
+                      currencySymbol: user.currencySymbol // Ensure product inherits currency
                     };
 
                     if (editingProductId && onUpdateProduct) {

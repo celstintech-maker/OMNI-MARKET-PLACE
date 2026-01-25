@@ -58,6 +58,7 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
         const groupMethod = selectedMethods[item.sellerId];
         // If not explicitly selected in this session, fallback to item's default or bank_transfer
         const method = groupMethod || item.paymentMethod || 'bank_transfer';
+        const amount = item.price * item.quantity;
 
         return {
           id: `tr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -65,8 +66,9 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           productName: item.name,
           sellerId: item.sellerId,
           storeName: item.storeName,
-          amount: item.price * item.quantity,
-          commission: (item.price * item.quantity) * config.commissionRate,
+          amount: amount,
+          commission: amount * config.commissionRate,
+          tax: config.taxEnabled ? amount * config.taxRate : 0,
           timestamp: Date.now(),
           currencySymbol: item.currencySymbol || '₦',
           paymentMethod: method,
@@ -77,7 +79,7 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
       onCompletePurchase(newTransactions);
     }
     return () => clearInterval(timer);
-  }, [checkoutStep, countdown, cart, billing, deliveryType, config.commissionRate, selectedMethods]);
+  }, [checkoutStep, countdown, cart, billing, deliveryType, config.commissionRate, config.taxEnabled, config.taxRate, selectedMethods]);
 
   const totalCartValue = cart.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
 

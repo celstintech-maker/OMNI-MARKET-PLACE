@@ -49,6 +49,13 @@ export interface AIConfig {
   specialInstructions: string;
 }
 
+export interface SellerPaymentConfig {
+  paystackPublicKey?: string;
+  flutterwavePublicKey?: string;
+  stripePublicKey?: string;
+  bankDetails?: BankDetails;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -57,6 +64,8 @@ export interface User {
   pin?: string; // Added PIN for authentication
   storeName?: string;
   country?: string; 
+  currency?: string; // e.g., 'NGN', 'USD'
+  currencySymbol?: string; // e.g., '₦', '$'
   state?: string;
   city?: string;
   isSuspended?: boolean;
@@ -64,6 +73,7 @@ export interface User {
   recruitedBy?: string; 
   paymentMethod?: string;
   enabledPaymentMethods?: string[];
+  sellerPaymentConfig?: SellerPaymentConfig; // Seller's personal gateway keys
   bankDetails?: BankDetails;
   verification?: SellerVerification;
   passwordHint?: string; 
