@@ -23,13 +23,15 @@ interface MarketplaceHomeProps {
 const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], customUrl?: string }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
+  const images = products.length > 0 ? products.map(p => p.imageUrl) : [];
+
   useEffect(() => {
-    if (customUrl || products.length === 0) return;
+    if (customUrl || images.length === 0) return;
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % products.length);
+      setCurrentIndex((prev) => (prev + 1) % images.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [products.length, customUrl]);
+  }, [images.length, customUrl]);
 
   if (customUrl && customUrl.trim() !== "") {
     return (
@@ -42,17 +44,90 @@ const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], cus
 
   return (
     <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden">
-      {products.length > 0 ? products.map((p, idx) => (
+      {images.length > 0 ? images.map((img, idx) => (
         <div 
-          key={p.id} 
+          key={idx} 
           className={`absolute inset-0 transition-opacity duration-[3000ms] ${idx === currentIndex ? 'opacity-40 scale-110' : 'opacity-0 scale-100'} transform transition-transform duration-[8000ms] ease-linear`}
         >
-          <img src={p.imageUrl} className="w-full h-full object-cover" alt="" />
+          <img src={img} className="w-full h-full object-cover" alt="" />
         </div>
       )) : (
         <div className="absolute inset-0 bg-slate-900 opacity-40"></div>
       )}
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/90 via-slate-950/70 to-slate-950 z-10"></div>
+    </div>
+  );
+};
+
+const BannerSlider = ({ banners }: { banners: string[] }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!banners || banners.length === 0) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [banners, banners.length]); // Added banners.length dependency
+
+  if (!banners || banners.length === 0) return null;
+
+  return (
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 -mt-8 relative z-30 animate-slide-up">
+      <div className="relative w-full aspect-[21/9] md:aspect-[3/1] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 dark:border-slate-800 bg-gray-100 dark:bg-slate-900 group">
+        {banners.map((banner, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              index === currentIndex ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <img
+              src={banner}
+              alt={`Ad Banner ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
+          </div>
+        ))}
+        
+        {/* Indicators */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {banners.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === currentIndex 
+                  ? 'bg-white w-8' 
+                  : 'bg-white/40 w-2 hover:bg-white/80'
+              }`}
+            />
+          ))}
+        </div>
+        
+        {/* Navigation Arrows */}
+        {banners.length > 1 && (
+          <>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % banners.length); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </>
+        )}
+        
+        <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+           <span className="text-[8px] font-black uppercase tracking-widest text-white">Sponsored</span>
+        </div>
+      </div>
     </div>
   );
 };
@@ -88,7 +163,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-20">
-      <section className="relative -mt-8 -mx-4 sm:-mx-8 px-4 sm:px-8 py-16 md:py-48 flex items-center justify-center overflow-hidden min-h-[70vh] md:min-h-[85vh]">
+      <section className="relative -mt-8 -mx-4 sm:-mx-8 px-4 sm:px-8 py-16 md:py-48 flex items-center justify-center overflow-hidden min-h-[60vh] md:min-h-[75vh]">
         <BackgroundSlideshow products={slideshowProducts} customUrl={config.heroBackgroundUrl} />
         
         <div className="relative z-20 text-center max-w-5xl space-y-8 md:space-y-12 animate-fade-in w-full">
@@ -168,6 +243,9 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Verified Partner Banners Widget */}
+      <BannerSlider banners={config.adBanners} />
 
       <section id="stores-list" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="text-center space-y-2">

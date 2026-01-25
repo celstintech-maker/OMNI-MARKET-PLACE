@@ -23,6 +23,7 @@ export interface SiteConfig {
   heroTitle: string;
   heroSubtitle: string;
   heroBackgroundUrl?: string;
+  adBanners: string[];
   announcement: string;
   footerText: string;
   contactEmail: string;
@@ -45,6 +46,7 @@ const INITIAL_CONFIG: SiteConfig = {
   heroTitle: 'OMNI MARKETPLACE',
   heroSubtitle: 'GLOBAL COMMERCE REIMAGINED',
   heroBackgroundUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop',
+  adBanners: [],
   announcement: '🎉 Global Shipping Protocols Active - 20% Off Fees',
   footerText: 'Decentralized commerce infrastructure for the modern world.',
   contactEmail: 'support@omni.link',
@@ -68,7 +70,7 @@ const INITIAL_USERS: User[] = [
     id: 's1', name: 'Tech Seller', email: 'seller@tech.com', role: UserRole.SELLER, pin: '0000', storeName: 'TechHub',
     verification: { businessName: 'Tech Hub Inc', businessAddress: '123 Tech Lane', country: 'Nigeria', phoneNumber: '1234567890', profilePictureUrl: '', verificationStatus: 'verified', identityApproved: true, productSamples: [] },
     rentPaid: true, sellerRating: 4.8, enabledPaymentMethods: ['bank_transfer', 'stripe', 'pod'],
-    country: 'Nigeria', currency: 'NGN', currencySymbol: '₦'
+    country: 'Nigeria', currency: 'NGN', currencySymbol: '₦', state: 'Lagos', city: 'Ikeja'
   },
   {
     id: 'b1', name: 'John Doe', email: 'buyer@gmail.com', role: UserRole.BUYER, pin: '1234'
@@ -100,7 +102,7 @@ function App() {
 
   const activeStore = stores.find(s => s.name === (currentView.startsWith('store/') ? decodeURIComponent(currentView.split('/')[1]) : ''));
 
-  const handleLogin = (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string) => {
+  const handleLogin = (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string, extraDetails?: any) => {
     // Exact match for role-specific login
     const existing = users.find(u => u.email === email && u.role === role);
     
@@ -122,18 +124,21 @@ function App() {
       // Proceed with Registration
       const newUser: User = {
         id: `u-${Date.now()}`,
-        name: email.split('@')[0],
+        name: extraDetails?.fullName || email.split('@')[0],
         email,
         role,
         pin,
         storeName: role === UserRole.SELLER ? storeName : undefined,
         passwordHint: hint,
         recruitedBy: referralCode,
+        country: extraDetails?.country,
+        state: extraDetails?.state,
+        city: extraDetails?.city,
         verification: role === UserRole.SELLER ? {
           businessName: storeName || '',
-          businessAddress: '',
-          country: '',
-          phoneNumber: '',
+          businessAddress: `${extraDetails?.city || ''}, ${extraDetails?.state || ''}`,
+          country: extraDetails?.country || '',
+          phoneNumber: extraDetails?.phone || '',
           profilePictureUrl: '',
           verificationStatus: 'pending',
           productSamples: []

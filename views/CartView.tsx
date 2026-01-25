@@ -228,6 +228,14 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                  const isBankTransfer = currentMethod === 'bank_transfer';
                  const isPOD = currentMethod === 'pod';
 
+                 // Resolve Bank Details: Use Seller's if available, otherwise Admin's
+                 const sellerBank = seller?.bankDetails;
+                 const hasSellerBank = sellerBank && sellerBank.bankName && sellerBank.accountNumber;
+                 
+                 const displayBankDetails = hasSellerBank 
+                    ? `Bank: ${sellerBank.bankName}\nAccount: ${sellerBank.accountNumber}\nName: ${sellerBank.accountName}`
+                    : (config.adminBankDetails || "Admin bank details not configured.");
+
                  return (
                    <div key={i} className="bg-white dark:bg-slate-900 border-l-8 border-indigo-600 p-8 rounded-3xl shadow-sm space-y-6 animate-slide-up">
                       <div className="flex flex-col gap-4">
@@ -256,9 +264,11 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
 
                       {isBankTransfer ? (
                         <div className="bg-gray-50 dark:bg-slate-800 p-6 rounded-2xl space-y-4">
-                           <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest mb-2">Central Company Bank Details</p>
-                           <pre className="text-sm font-black dark:text-white whitespace-pre-wrap leading-relaxed">{config.adminBankDetails || "Admin bank details not configured."}</pre>
-                           <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the company bank above. Vendors will ship items once our central hub verifies the transaction packet."</p>
+                           <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest mb-2">
+                             {hasSellerBank ? "Direct Vendor Bank Details" : "Central Company Bank Details"}
+                           </p>
+                           <pre className="text-sm font-black dark:text-white whitespace-pre-wrap leading-relaxed">{displayBankDetails}</pre>
+                           <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the account above. Vendors will ship items once the transaction is verified."</p>
                         </div>
                       ) : isPOD ? (
                         <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-2">

@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole, Store } from '../types';
+import { NIGERIA_LOCATIONS, COUNTRY_CURRENCY_MAP } from '../constants';
 
 interface AuthViewProps {
   stores: Store[];
-  onLogin: (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string) => void;
+  onLogin: (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string, extraDetails?: any) => void;
   initialIsRegister?: boolean;
   initialRole?: UserRole;
 }
@@ -19,6 +20,13 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
   const [storeName, setStoreName] = useState('');
   const [referralCode, setReferralCode] = useState('');
 
+  // Seller specific fields
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('Nigeria');
+  const [state, setState] = useState('');
+  const [city, setCity] = useState('');
+
   useEffect(() => {
     setIsRegister(initialIsRegister);
     setRole(initialRole);
@@ -30,7 +38,37 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
       alert("PIN must be at least 4 digits.");
       return;
     }
-    onLogin(email, role, pin, role === UserRole.SELLER ? storeName : undefined, hint, referralCode);
+    
+    if (isRegister && role === UserRole.SELLER) {
+        if (!fullName || !phone || !country || !state || !city) {
+            alert("Please complete all seller profile fields.");
+            return;
+        }
+    }
+
+    const extraDetails = {
+        fullName: isRegister && role === UserRole.SELLER ? fullName : undefined,
+        phone: isRegister && role === UserRole.SELLER ? phone : undefined,
+        country: isRegister && role === UserRole.SELLER ? country : undefined,
+        state: isRegister && role === UserRole.SELLER ? state : undefined,
+        city: isRegister && role === UserRole.SELLER ? city : undefined,
+    };
+
+    onLogin(email, role, pin, role === UserRole.SELLER ? storeName : undefined, hint, referralCode, extraDetails);
+  };
+
+  const getStates = () => {
+      if (country === 'Nigeria') {
+          return Object.keys(NIGERIA_LOCATIONS).sort();
+      }
+      return [];
+  };
+
+  const getCities = () => {
+      if (country === 'Nigeria' && state && NIGERIA_LOCATIONS[state]) {
+          return NIGERIA_LOCATIONS[state].sort();
+      }
+      return [];
   };
 
   return (
@@ -130,26 +168,105 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
 
         {isRegister && role === UserRole.SELLER && (
           <>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Store Name</label>
-              <input 
-                type="text" 
-                required 
-                className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
-                placeholder="My Store"
-                value={storeName}
-                onChange={e => setStoreName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Referral ID (Optional)</label>
-              <input 
-                type="text" 
-                className="w-full bg-gray-50 dark:bg-slate-800 dark:text-white rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition-all" 
-                placeholder="Enter Staff ID if recruited"
-                value={referralCode}
-                onChange={e => setReferralCode(e.target.value)}
-              />
+            <div className="p-4 bg-indigo-50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-slate-700 space-y-4">
+                <h4 className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Seller Profile</h4>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Full Name</label>
+                    <input 
+                        type="text" 
+                        required 
+                        className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700 focus:border-indigo-600" 
+                        placeholder="John Doe"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Phone Number</label>
+                    <input 
+                        type="tel" 
+                        required 
+                        className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700 focus:border-indigo-600" 
+                        placeholder="+234..."
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Store Name</label>
+                    <input 
+                        type="text" 
+                        required 
+                        className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700 focus:border-indigo-600" 
+                        placeholder="My Store"
+                        value={storeName}
+                        onChange={e => setStoreName(e.target.value)}
+                    />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Country</label>
+                        <select 
+                            value={country} 
+                            onChange={e => { setCountry(e.target.value); setState(''); setCity(''); }} 
+                            className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700"
+                        >
+                            {Object.keys(COUNTRY_CURRENCY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">State</label>
+                        {country === 'Nigeria' ? (
+                            <select 
+                                value={state} 
+                                onChange={e => { setState(e.target.value); setCity(''); }} 
+                                className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700"
+                            >
+                                <option value="">Select State</option>
+                                {getStates().map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        ) : (
+                            <input 
+                                value={state} 
+                                onChange={e => setState(e.target.value)} 
+                                className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700" 
+                                placeholder="State/Province" 
+                            />
+                        )}
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">City</label>
+                    {country === 'Nigeria' && state ? (
+                        <select 
+                            value={city} 
+                            onChange={e => setCity(e.target.value)} 
+                            className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700"
+                        >
+                            <option value="">Select City</option>
+                            {getCities().map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    ) : (
+                        <input 
+                            value={city} 
+                            onChange={e => setCity(e.target.value)} 
+                            className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700" 
+                            placeholder="City" 
+                        />
+                    )}
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Referral ID (Optional)</label>
+                    <input 
+                        type="text" 
+                        className="w-full bg-white dark:bg-slate-900 dark:text-white rounded-xl p-3 text-xs font-bold outline-none border border-gray-200 dark:border-slate-700 focus:border-indigo-600" 
+                        placeholder="Enter Staff ID if recruited"
+                        value={referralCode}
+                        onChange={e => setReferralCode(e.target.value)}
+                    />
+                </div>
             </div>
           </>
         )}

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo } from 'react';
 import { Product, User, Dispute, Transaction, AIConfig, BankDetails, Review } from '../types';
 import { Icons, CATEGORIES, PAYMENT_METHODS, COUNTRY_CURRENCY_MAP } from '../constants';
@@ -42,6 +41,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     paystack: user.sellerPaymentConfig?.paystackPublicKey || '',
     flutterwave: user.sellerPaymentConfig?.flutterwavePublicKey || '',
     stripe: user.sellerPaymentConfig?.stripePublicKey || ''
+  });
+
+  // Bank Details Local State
+  const [bankDetails, setBankDetails] = useState({
+    bankName: user.bankDetails?.bankName || '',
+    accountNumber: user.bankDetails?.accountNumber || '',
+    accountName: user.bankDetails?.accountName || ''
   });
 
   const identityDocRef = useRef<HTMLInputElement>(null);
@@ -112,7 +118,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     
     const totalOrders = myTransactions.length;
     const demographics = Object.entries(locationCounts)
-      .map(([name, count]) => ({ name, count, percentage: (count / totalOrders) * 100 }))
+      .map(([name, count]) => ({ name, count, percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0 }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
@@ -188,13 +194,14 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleUpdatePaymentKeys = () => {
     onUpdateUser({
       ...user,
+      bankDetails: bankDetails,
       sellerPaymentConfig: {
         paystackPublicKey: gatewayKeys.paystack,
         flutterwavePublicKey: gatewayKeys.flutterwave,
         stripePublicKey: gatewayKeys.stripe
       }
     });
-    alert("Payment Gateway Keys Updated.");
+    alert("Payment Configuration Updated Successfully.");
   };
 
   const handleCountryChange = (country: string) => {
@@ -833,8 +840,18 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                       <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Stripe Public Key</label>
                       <input value={gatewayKeys.stripe} onChange={e => setGatewayKeys({...gatewayKeys, stripe: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] outline-none border dark:border-slate-700" placeholder="pk_live_..." />
                    </div>
-                   <button onClick={handleUpdatePaymentKeys} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest mt-2">Save Keys</button>
                 </div>
+
+                <div className="pt-4 border-t dark:border-slate-800">
+                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3">Direct Bank Deposit</h4>
+                    <div className="space-y-2">
+                      <input value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-[10px] outline-none border dark:border-slate-700" placeholder="Bank Name" />
+                      <input value={bankDetails.accountNumber} onChange={e => setBankDetails({...bankDetails, accountNumber: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-[10px] outline-none border dark:border-slate-700" placeholder="Account Number" />
+                      <input value={bankDetails.accountName} onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-[10px] outline-none border dark:border-slate-700" placeholder="Account Name" />
+                    </div>
+                </div>
+
+                <button onClick={handleUpdatePaymentKeys} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest mt-2">Save Configuration</button>
              </div>
            </div>
         </div>

@@ -179,6 +179,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     alert(`Insight sent to ${messagingSeller.storeName}`);
   };
 
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        const promises = Array.from(files).map(file => {
+            return new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file as Blob);
+            });
+        });
+
+        Promise.all(promises).then(newBase64s => {
+             onUpdateConfig({
+                ...siteConfig,
+                adBanners: [...(siteConfig.adBanners || []), ...newBase64s]
+            });
+        });
+    }
+    // Reset to allow selecting same file if needed
+    e.target.value = '';
+  };
+
   const getSellerSales = (sellerId: string) => {
     return transactions
       .filter(t => t.sellerId === sellerId)
@@ -589,7 +611,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
            </div>
 
-           {/* Seller Assistant Registry (Combined previous function) */}
+           {/* Seller Assistant Registry */}
            <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border dark:border-slate-800 shadow-sm space-y-12">
               <h4 className="text-2xl font-black uppercase tracking-tighter">Seller Assistant Registry</h4>
               <p className="text-gray-500 font-bold text-xs">Manage individual store AI agents.</p>
@@ -625,6 +647,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="space-y-12 animate-slide-up">
            <div className="bg-white dark:bg-slate-900 p-10 sm:p-14 rounded-[3.5rem] border dark:border-slate-800 shadow-sm space-y-12">
               <h3 className="text-3xl font-black uppercase tracking-tighter">System Configuration</h3>
+
+              {/* Ad Banners */}
+              <div className="bg-gray-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-8">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-xl font-black uppercase tracking-tighter text-indigo-600">Homepage Advertising Banners</h4>
+                      <p className="text-xs text-gray-500 font-bold mt-1">Manage rotational marketing assets. Currently active: {siteConfig.adBanners?.length || 0}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                      {siteConfig.adBanners?.map((banner, idx) => (
+                          <div key={idx} className="flex gap-4 items-center bg-white dark:bg-slate-900 p-3 rounded-2xl border dark:border-slate-700">
+                              <img src={banner} className="w-16 h-10 rounded-lg object-cover bg-gray-200" alt="Banner" />
+                              <div className="flex-1">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Banner #{idx + 1}</p>
+                              </div>
+                              <button onClick={() => {
+                                  const newBanners = siteConfig.adBanners.filter((_, i) => i !== idx);
+                                  onUpdateConfig({...siteConfig, adBanners: newBanners});
+                              }} className="text-red-500 font-black text-[9px] uppercase px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition">Remove</button>
+                          </div>
+                      ))}
+                      
+                      <div className="flex gap-2 items-center pt-4">
+                          <label className="bg-indigo-600 text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg cursor-pointer hover:bg-indigo-700 transition active:scale-95 flex items-center gap-2">
+                              <span>Upload Banners</span>
+                              <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  multiple 
+                                  hidden 
+                                  onChange={handleBannerUpload}
+                              />
+                          </label>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest ml-2">Supported: JPG, PNG, WEBP • Max 20+</p>
+                      </div>
+                  </div>
+              </div>
 
               {/* CMS Section */}
               <div className="bg-gray-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-8">
@@ -718,7 +779,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Merchant Profile Audit Panel */}
+      {/* ... (Merchant Profile Audit Panel - kept as is) ... */}
       {selectedUser && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] p-10 sm:p-14 shadow-2xl relative animate-slide-up max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -750,6 +811,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <div>
                              <p className="text-[8px] font-black uppercase text-gray-400">CAC Record</p>
                              <p className="text-sm font-bold dark:text-white">{selectedUser.verification?.cacRegistrationNumber || 'Un-registered'}</p>
+                          </div>
+                          <div>
+                             <p className="text-[8px] font-black uppercase text-gray-400">Contact</p>
+                             <p className="text-sm font-bold dark:text-white">{selectedUser.verification?.phoneNumber || 'N/A'}</p>
+                          </div>
+                          <div>
+                             <p className="text-[8px] font-black uppercase text-gray-400">Location</p>
+                             <p className="text-sm font-bold dark:text-white">{selectedUser.verification?.businessAddress || 'N/A'}</p>
                           </div>
                        </div>
                     </div>
@@ -784,7 +853,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Admin Message Modal */}
+      {/* ... (Admin Message Modal - kept as is) ... */}
       {messagingSeller && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative animate-slide-up">
