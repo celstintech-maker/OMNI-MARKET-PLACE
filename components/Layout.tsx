@@ -45,6 +45,20 @@ export const Layout: React.FC<LayoutProps> = ({
     setFooterExpanded(false);
   };
 
+  const getDashboardView = () => {
+    switch (user?.role) {
+      case UserRole.ADMIN: return 'admin-dashboard';
+      case UserRole.SELLER: return 'seller-dashboard';
+      case UserRole.BUYER: return 'buyer-dashboard';
+      case UserRole.STAFF:
+      case UserRole.MARKETER:
+      case UserRole.TEAM_MEMBER:
+      case UserRole.TECHNICAL:
+        return 'staff-dashboard';
+      default: return 'home';
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden bg-white dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
       <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 sticky top-0 z-[100] transition-colors shadow-sm">
@@ -99,7 +113,16 @@ export const Layout: React.FC<LayoutProps> = ({
               )}
             </button>
             {user ? (
-              <button onClick={onLogout} className="p-2 sm:p-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-90"><Icons.Logout /></button>
+              <>
+                <button 
+                   onClick={() => handleNavClick(getDashboardView())}
+                   className="p-2 sm:p-3 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-all"
+                   title="Go to Dashboard"
+                 >
+                   <Icons.Admin />
+                 </button>
+                <button onClick={onLogout} className="p-2 sm:p-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-90"><Icons.Logout /></button>
+              </>
             ) : (
               <button onClick={() => { onNavigate('auth'); window.location.hash = '#/auth'; }} className="bg-indigo-600 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition">Sign In</button>
             )}
