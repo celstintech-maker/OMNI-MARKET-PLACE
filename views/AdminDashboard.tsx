@@ -49,7 +49,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Filter vendors based on role
   const sellers = vendors.filter(u => u.role === UserRole.SELLER);
   const staffMembers = vendors.filter(u => [UserRole.STAFF, UserRole.MARKETER, UserRole.TECHNICAL, UserRole.TEAM_MEMBER].includes(u.role));
-  const flaggedProducts = products.filter(p => p.isFlagged || (p.flags && p.flags > 0));
+  
+  // Ensure flagged products logic is robust
+  const flaggedProducts = products.filter(p => p.isFlagged === true || (p.flags && p.flags > 0));
+
+  // Ensure disputes logic is robust
+  const activeDisputes = disputes.filter(d => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.ESCALATED || d.status === DisputeStatus.UNDER_REVIEW);
 
   const handleRunAI = async (mode: 'trend' | 'policy' | 'audit') => {
     const apiKey = process.env.API_KEY || manualApiKey;
@@ -181,22 +186,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return transactions.filter(t => t.sellerId === sellerId).sort((a,b) => b.timestamp - a.timestamp);
   };
 
-  // Build Tabs
+  // Build Tabs with Icons
   const tabs = [
-    {id: 'users', label: 'Stores'},
-    {id: 'activities', label: 'Activities'},
-    {id: 'staff', label: 'Staff & Roles'},
-    {id: 'justice', label: 'Justice Hub', count: disputes.filter(d => d.status === DisputeStatus.ESCALATED || d.status === DisputeStatus.OPEN).length},
-    {id: 'flagged', label: 'Flagged Items', count: flaggedProducts.length},
-    {id: 'ai', label: 'Super Brain AI'},
-    {id: 'settings', label: 'Config'}
+    {id: 'users', label: 'Stores', icon: '🏪'},
+    {id: 'activities', label: 'Activities', icon: '📊'},
+    {id: 'staff', label: 'Staff & Roles', icon: '👥'},
+    {id: 'justice', label: 'Justice Hub', icon: '⚖️', count: activeDisputes.length},
+    {id: 'flagged', label: 'Flagged Items', icon: '🚩', count: flaggedProducts.length},
+    {id: 'ai', label: 'Super Brain AI', icon: '🧠'},
+    {id: 'settings', label: 'Config', icon: '⚙️'}
   ];
-
-  const activeDisputes = disputes.filter(d => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.ESCALATED);
 
   return (
     <div className="space-y-8 pb-20 px-2 sm:px-0 animate-fade-in relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-4">
         <div>
            <h2 className="text-4xl font-black tracking-tighter uppercase leading-none text-slate-900 dark:text-white">Admin Infrastructure</h2>
            <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest mt-2 flex items-center gap-2">
@@ -206,15 +209,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 border-b dark:border-slate-800">
+      {/* Tiles Menu View */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
         {tabs.map((tab) => (
           <button 
             key={tab.id} 
             onClick={() => setActiveTab(tab.id as any)} 
-            className={`px-8 py-4 rounded-t-3xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all flex items-center gap-3 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-xl' : 'text-gray-500 hover:text-indigo-600'}`}
+            className={`
+              relative p-4 rounded-3xl flex flex-col items-center justify-center gap-2 transition-all border-2
+              ${activeTab === tab.id 
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xl scale-105 z-10' 
+                : 'bg-white dark:bg-slate-900 text-gray-500 border-gray-100 dark:border-slate-800 hover:border-indigo-100 hover:bg-gray-50'
+              }
+            `}
           >
-            {tab.label}
-            {tab.count ? <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">{tab.count}</span> : null}
+            <span className="text-2xl">{tab.icon}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest">{tab.label}</span>
+            {tab.count ? (
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold shadow-md animate-bounce">
+                {tab.count}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -467,7 +482,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* ... keeping other tabs mostly same, focusing on AI tab changes ... */}
+      {activeTab === 'justice' && (
+        <div className="space-y-6 animate-slide-up">
+           {activeDisputes.length === 0 ? (
+             <div className="py-32 text-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed dark:border-slate-800 text-gray-400">
+               <span className="text-4xl block mb-2">⚖️</span>
+               <p className="font-black uppercase text-[10px] tracking-widest">Justice Hub Clear</p>
+               <p className="text-xs text-gray-500 mt-2">No active disputes requiring arbitration.</p>
+             </div>
+           ) : (
+             activeDisputes.map(d => (
+               <div key={d.id} className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm flex flex-col md:flex-row gap-8 items-start">
+                  <div className="flex-1 space-y-4">
+                     <div className="flex items-center gap-3">
+                        <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${d.status === DisputeStatus.OPEN ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>{d.status}</span>
+                        <span className="text-[10px] font-black uppercase text-gray-400">Incident: {d.reason.replace('_', ' ')}</span>
+                     </div>
+                     <p className="text-sm font-medium dark:text-slate-300 italic leading-relaxed">"{d.description}"</p>
+                     {d.status === DisputeStatus.OPEN && (
+                       <p className="text-[9px] text-amber-500 font-bold">Mediator: Platform (Automatic)</p>
+                     )}
+                     {Date.now() > d.timestamp + 172800000 && d.status === DisputeStatus.OPEN && (
+                       <p className="text-[9px] text-red-500 font-bold uppercase animate-pulse">Exceeded 48h - Admin Review Required</p>
+                     )}
+                  </div>
+                  <div className="flex flex-col gap-2 w-full md:w-48">
+                     <button onClick={() => handleResolveDispute(d, DisputeStatus.RESOLVED)} className="w-full py-3 bg-green-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-green-700 transition">Finalize: Resolved</button>
+                     <button onClick={() => handleResolveDispute(d, DisputeStatus.REFUNDED)} className="w-full py-3 bg-red-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition">Finalize: Refund</button>
+                  </div>
+               </div>
+             ))
+           )}
+        </div>
+      )}
+
+      {activeTab === 'flagged' && (
+        <div className="space-y-6 animate-slide-up">
+           <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Community & AI Flags</h3>
+           {flaggedProducts.length === 0 ? (
+             <div className="py-32 text-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed dark:border-slate-800 text-gray-400">
+                <span className="text-4xl block mb-2">🚩</span>
+                <p className="font-black uppercase text-[10px] tracking-widest">No Flagged Items</p>
+                <p className="text-xs text-gray-500 mt-2">All inventory is compliant with safety protocols.</p>
+             </div>
+           ) : (
+             flaggedProducts.map(p => (
+               <div key={p.id} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-red-100 dark:border-red-900/30 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <img src={p.imageUrl} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                    <div>
+                      <p className="font-bold text-sm dark:text-white">{p.name}</p>
+                      <p className="text-xs text-red-500 font-bold">Flags: {p.flags || 1}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleApproveProduct(p)} className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-[9px] font-black uppercase hover:bg-green-200">Clear Flags</button>
+                    <button onClick={() => onUpdateProduct({...p, isFlagged: true})} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-[9px] font-black uppercase hover:bg-red-200">Keep Hidden</button>
+                  </div>
+               </div>
+             ))
+           )}
+        </div>
+      )}
 
       {activeTab === 'ai' && (
         <div className="space-y-12 animate-slide-up">
@@ -542,21 +618,196 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Settings, Justice, Flagged tabs remain similar but ensure padding/layout checks if necessary */}
-      {/* ... (Existing Settings, Justice, Flagged implementations) ... */}
-      
       {activeTab === 'settings' && (
         <div className="space-y-12 animate-slide-up">
            <div className="bg-white dark:bg-slate-900 p-10 sm:p-14 rounded-[3.5rem] border dark:border-slate-800 shadow-sm space-y-12">
-              {/* Settings content same as provided in previous prompt but check padding */}
-              {/* ... (Existing Settings content) ... */}
               <h3 className="text-3xl font-black uppercase tracking-tighter">System Configuration</h3>
-              {/* ... */}
+
+              {/* CMS Section */}
+              <div className="bg-gray-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-8">
+                 <h4 className="text-xl font-black uppercase tracking-tighter text-indigo-600">Content Management System (CMS)</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                       <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Platform Identity</label>
+                       <input value={siteConfig.siteName} onChange={(e) => onUpdateConfig({...siteConfig, siteName: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-bold text-sm border-none outline-none" placeholder="Site Name" />
+                       <input value={siteConfig.heroTitle} onChange={(e) => onUpdateConfig({...siteConfig, heroTitle: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-bold text-sm border-none outline-none" placeholder="Hero Title" />
+                       <input value={siteConfig.heroSubtitle} onChange={(e) => onUpdateConfig({...siteConfig, heroSubtitle: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-bold text-sm border-none outline-none" placeholder="Hero Subtitle" />
+                    </div>
+                    <div className="space-y-4">
+                       <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Communications</label>
+                       <textarea value={siteConfig.announcement} onChange={(e) => onUpdateConfig({...siteConfig, announcement: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-bold text-xs border-none outline-none h-24" placeholder="Global Announcement Bar" />
+                       <input value={siteConfig.footerText} onChange={(e) => onUpdateConfig({...siteConfig, footerText: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-bold text-sm border-none outline-none" placeholder="Footer Text" />
+                    </div>
+                 </div>
+              </div>
+
+              {/* Payment Protocol Section */}
+              <div className="bg-gray-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-8">
+                 <h4 className="text-xl font-black uppercase tracking-tighter text-indigo-600">Payment Protocol & Gateways</h4>
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                       <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Bank Wire Configuration</label>
+                       <textarea value={siteConfig.adminBankDetails} onChange={(e) => onUpdateConfig({...siteConfig, adminBankDetails: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-mono text-xs border-none outline-none h-32" placeholder="Bank Details for Manual Transfers..." />
+                    </div>
+                    <div className="space-y-4">
+                       <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Gateway API Keys</label>
+                       <div className="grid grid-cols-1 gap-2">
+                           <input value={siteConfig.paystackPublicKey || ''} onChange={(e) => onUpdateConfig({...siteConfig, paystackPublicKey: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-mono text-[10px] border-none outline-none" placeholder="Paystack Public Key" />
+                           <input value={siteConfig.flutterwavePublicKey || ''} onChange={(e) => onUpdateConfig({...siteConfig, flutterwavePublicKey: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-mono text-[10px] border-none outline-none" placeholder="Flutterwave Public Key" />
+                           <input value={siteConfig.stripePublicKey || ''} onChange={(e) => onUpdateConfig({...siteConfig, stripePublicKey: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-mono text-[10px] border-none outline-none" placeholder="Stripe Public Key" />
+                       </div>
+                       <div className="pt-2">
+                          <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Shop Rental Fee</label>
+                          <input type="number" value={siteConfig.rentalPrice} onChange={(e) => onUpdateConfig({...siteConfig, rentalPrice: parseFloat(e.target.value)})} className="w-full p-4 bg-white dark:bg-slate-900 rounded-xl font-bold text-sm border-none outline-none" placeholder="Rental Price" />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                 <div className="space-y-8">
+                    <div className="bg-gray-50 dark:bg-slate-800 p-8 rounded-3xl space-y-6">
+                       <h4 className="text-xs font-black uppercase tracking-widest text-indigo-600">Fiscal Policy</h4>
+                       <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold">Enable Tax Deduction</span>
+                          <button onClick={() => onUpdateConfig({...siteConfig, taxEnabled: !siteConfig.taxEnabled})} className={`w-12 h-6 rounded-full transition-colors ${siteConfig.taxEnabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+                             <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${siteConfig.taxEnabled ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                          </button>
+                       </div>
+                       <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold">Tax Rate</span>
+                          <input type="number" value={siteConfig.taxRate} step="0.01" onChange={(e) => onUpdateConfig({...siteConfig, taxRate: parseFloat(e.target.value)})} className="w-20 p-2 rounded-lg bg-white dark:bg-slate-900 border text-center font-bold" />
+                       </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 dark:bg-slate-800 p-8 rounded-3xl space-y-6">
+                       <h4 className="text-xs font-black uppercase tracking-widest text-indigo-600">Compliance AI</h4>
+                       <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold">Post-Launch Auto-Flagging</span>
+                          <button onClick={() => onUpdateConfig({...siteConfig, autoFlaggingEnabled: !siteConfig.autoFlaggingEnabled})} className={`w-12 h-6 rounded-full transition-colors ${siteConfig.autoFlaggingEnabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+                             <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${siteConfig.autoFlaggingEnabled ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                          </button>
+                       </div>
+                       <p className="text-[9px] text-gray-500 font-bold">When enabled, items go live immediately but AI/Community reports will auto-hide them after threshold.</p>
+                    </div>
+                 </div>
+
+                 {/* Category Management */}
+                 <div className="border-t dark:border-slate-800 pt-12 space-y-6">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-indigo-600">Marketplace Taxonomy (Categories)</h4>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                       {categories.map((cat, i) => (
+                          <span key={i} className="px-4 py-2 bg-gray-100 dark:bg-slate-800 rounded-full text-[10px] font-bold uppercase">{cat}</span>
+                       ))}
+                    </div>
+                    <div className="flex gap-4 max-w-md">
+                       <input 
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value)}
+                          placeholder="New Category Name" 
+                          className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold border dark:border-slate-700 outline-none"
+                       />
+                       <button onClick={handleAddCategory} className="bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-6 rounded-xl font-black uppercase text-[10px] tracking-widest">Add</button>
+                    </div>
+                 </div>
+              </div>
            </div>
         </div>
       )}
-      
-      {/* ... */}
+
+      {/* Merchant Profile Audit Panel */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] p-10 sm:p-14 shadow-2xl relative animate-slide-up max-h-[90vh] overflow-y-auto no-scrollbar">
+              <button onClick={() => setSelectedUser(null)} className="absolute top-10 right-10 text-gray-400 hover:text-red-500">✕</button>
+              
+              <div className="space-y-10">
+                 <div className="text-center">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Merchant Audit Profile: {selectedUser.storeName}</h3>
+                    <p className="text-[10px] font-black uppercase text-gray-400 mt-2 tracking-widest">Global ID: {selectedUser.id}</p>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                       <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600 border-b dark:border-slate-800 pb-2">Compliance Dossier</h4>
+                       
+                       <div className="flex items-center gap-4">
+                          {selectedUser.verification?.profilePictureUrl ? (
+                             <img src={selectedUser.verification.profilePictureUrl} className="w-16 h-16 rounded-full object-cover border-2 border-indigo-600" alt="Profile" />
+                          ) : (
+                             <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black uppercase text-gray-400">No Pic</div>
+                          )}
+                          <div>
+                             <p className="text-[8px] font-black uppercase text-gray-400">Merchant Identity</p>
+                             <p className="font-bold dark:text-white">{selectedUser.name}</p>
+                          </div>
+                       </div>
+
+                       <div className="space-y-4">
+                          <div>
+                             <p className="text-[8px] font-black uppercase text-gray-400">CAC Record</p>
+                             <p className="text-sm font-bold dark:text-white">{selectedUser.verification?.cacRegistrationNumber || 'Un-registered'}</p>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="space-y-6">
+                       <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600 border-b dark:border-slate-800 pb-2">Verification Documents</h4>
+                       {selectedUser.verification?.govDocumentUrl ? (
+                         <div className="space-y-4 text-center">
+                            <img src={selectedUser.verification.govDocumentUrl} className="w-full h-32 object-cover rounded-2xl border dark:border-slate-700" alt="Document" />
+                            <a href={selectedUser.verification.govDocumentUrl} download className="block py-3 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Download Document</a>
+                         </div>
+                       ) : (
+                         <div className="h-40 bg-gray-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-[10px] font-black text-gray-400 uppercase tracking-widest text-center px-4">Document Not <br/> Found</div>
+                       )}
+                    </div>
+                 </div>
+
+                 <div className="pt-10 flex gap-4">
+                    <button 
+                       disabled={!selectedUser.verification?.govDocumentUrl}
+                       onClick={() => handleApproveIdentity(selectedUser)}
+                       className="flex-1 bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                    >
+                       Approve & Grant License
+                    </button>
+                    <button onClick={() => setSelectedUser(null)} className="flex-1 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-300 py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">
+                       Dismiss
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Admin Message Modal */}
+      {messagingSeller && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative animate-slide-up">
+              <button onClick={() => setMessagingSeller(null)} className="absolute top-8 right-8 text-gray-400">✕</button>
+              <h3 className="text-2xl font-black uppercase tracking-tighter mb-2 dark:text-white">Admin Insight</h3>
+              <p className="text-xs font-bold text-gray-400 mb-6 uppercase tracking-widest">To: {messagingSeller.storeName}</p>
+              
+              <div className="space-y-4">
+                 <textarea 
+                    value={adminMessage}
+                    onChange={e => setAdminMessage(e.target.value)}
+                    placeholder="Notify seller about top performing products or store optimizations..."
+                    className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl font-medium text-xs h-40 border border-gray-200 dark:border-slate-700 outline-none"
+                    autoFocus
+                 />
+                 <button 
+                    onClick={handleSendAdminMessage}
+                    disabled={!adminMessage.trim()}
+                    className="w-full bg-indigo-600 disabled:bg-gray-300 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                 >
+                    Transmit Message
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

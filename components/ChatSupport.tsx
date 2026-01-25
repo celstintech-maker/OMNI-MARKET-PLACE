@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, Message, UserRole, Store } from '../types';
 import { GoogleGenAI } from "@google/genai";
+import { Icons } from '../constants';
 
 interface ChatSupportProps {
   currentUser: User | null;
@@ -33,7 +34,8 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   const [input, setInput] = useState('');
   const [channelSearchQuery, setChannelSearchQuery] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [queueStatus, setQueueStatus] = useState<{inQueue: boolean, position: number} | null>(null);
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastActivityRef = useRef<number>(Date.now());
@@ -51,7 +53,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [globalMessages, selectedChannel, isThinking, queueStatus]);
+  }, [globalMessages, selectedChannel, isThinking, attachment]);
 
   const updateActivity = () => {
     lastActivityRef.current = Date.now();
@@ -67,7 +69,22 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
     return stores.filter(s => s.name.toLowerCase().includes(channelSearchQuery.toLowerCase()));
   }, [stores, channelSearchQuery]);
 
-  const handleAIService = async (userMessage: string, channelId: string) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size too large. Max 5MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachment(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
     const apiKey = process.env.API_KEY;
     
     if (!apiKey) {
@@ -87,12 +104,28 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
       const isSystemSupport = channelId === 'system';
       
       const systemPrompt = isSystemSupport 
-        ? `You are the Omni Global Support AI. Support User: ${activeUser.name}. Role: ${activeUser.role}.`
-        : `You are the Sales Agent for "${activeChannelName}". Help the visitor: ${activeUser.name}.`;
+        ? `You are the Omni Global Support AI. Support User: ${activeUser.name}. Role: ${activeUser.role}. You can see images the user uploads. Analyze them if provided.`
+        : `You are the Sales Agent for "${activeChannelName}". Help the visitor: ${activeUser.name}. If they upload an image of a product, analyze it, describe it, and suggest if we might have something similar.`;
+
+      // Construct content parts
+      const parts: any[] = [{ text: userMessage }];
+      
+      if (userAttachment) {
+        // userAttachment is data:image/png;base64,....
+        const base64Data = userAttachment.split(',')[1];
+        const mimeType = userAttachment.split(';')[0].split(':')[1];
+        
+        parts.push({
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Data
+          }
+        });
+      }
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: userMessage,
+        contents: { parts: parts },
         config: { systemInstruction: systemPrompt, temperature: 0.7 }
       });
 
@@ -124,18 +157,25 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text || !selectedChannel || !onSendMessage) return;
+    const currentAttachment = attachment;
+
+    if ((!text && !currentAttachment) || !selectedChannel || !onSendMessage) return;
 
     onSendMessage(selectedChannel, {
       id: `msg-${Date.now()}`,
       senderId: activeUser.id,
       senderName: activeUser.name,
-      text,
+      text: text,
+      attachment: currentAttachment || undefined,
       timestamp: Date.now()
     });
+    
     setInput('');
+    setAttachment(null);
     updateActivity();
-    handleAIService(text, selectedChannel);
+    
+    // Trigger AI response
+    handleAIService(text || (currentAttachment ? "Analyze this image." : ""), currentAttachment, selectedChannel);
   };
 
   if (!isOpen && !isEmbedded) {
@@ -238,17 +278,26 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
             {messages.map(msg => (
               <div key={msg.id} className={`flex flex-col ${msg.senderId === activeUser.id ? 'items-end' : 'items-start'}`}>
                 <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest mb-1.5 px-1">{msg.senderName}</span>
-                <div className={`
-                  max-w-[85%] px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed
-                  ${msg.senderId === activeUser.id 
-                    ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg' 
-                    : msg.senderId === 'ai-agent' && msg.id.includes('err')
-                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900 rounded-tl-none shadow-sm'
-                      : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
-                  }
-                `}>
-                  {msg.text}
-                </div>
+                
+                {msg.attachment && (
+                  <div className="mb-2 max-w-[85%] rounded-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
+                    <img src={msg.attachment} alt="attachment" className="w-full h-auto object-cover max-h-48" />
+                  </div>
+                )}
+
+                {msg.text && (
+                  <div className={`
+                    max-w-[85%] px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed
+                    ${msg.senderId === activeUser.id 
+                      ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg' 
+                      : msg.senderId === 'ai-agent' && msg.id.includes('err')
+                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900 rounded-tl-none shadow-sm'
+                        : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
+                    }
+                  `}>
+                    {msg.text}
+                  </div>
+                )}
               </div>
             ))}
             {isThinking && (
@@ -260,7 +309,31 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
             )}
           </div>
 
-          <form onSubmit={handleFormSubmit} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex gap-2 shrink-0 pb-6 sm:pb-4">
+          {attachment && (
+            <div className="px-4 pb-2 bg-white dark:bg-slate-900 flex items-center justify-between">
+              <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                <img src={attachment} className="w-8 h-8 object-cover rounded" />
+                <span className="text-[9px] font-bold text-gray-500 uppercase">Image Attached</span>
+              </div>
+              <button onClick={() => setAttachment(null)} className="text-gray-400 hover:text-red-500">✕</button>
+            </div>
+          )}
+
+          <form onSubmit={handleFormSubmit} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex gap-2 shrink-0 pb-6 sm:pb-4 items-center">
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileSelect} 
+            />
+            <button 
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-3 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+            >
+              <Icons.Camera />
+            </button>
             <input 
               type="text" 
               value={input}
@@ -270,7 +343,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
             />
             <button 
               type="submit" 
-              disabled={!input.trim()}
+              disabled={!input.trim() && !attachment}
               className="bg-indigo-600 text-white p-3 sm:p-4 rounded-xl disabled:opacity-50 active:scale-90 transition shadow-lg"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>

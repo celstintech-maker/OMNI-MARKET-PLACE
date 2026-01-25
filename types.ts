@@ -136,6 +136,7 @@ export interface Message {
   senderId: string;
   senderName: string;
   text: string;
+  attachment?: string; // Base64 string for images
   timestamp: number;
 }
 
