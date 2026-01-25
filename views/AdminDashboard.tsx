@@ -387,7 +387,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                    {tx.paymentMethod?.replace('_', ' ') || 'Bank Transfer'}
                                                 </span>
                                              </td>
-                                             <td className="py-4 text-xs font-black dark:text-white text-right">₦{tx.amount.toLocaleString()}</p>
+                                             <td className="py-4 text-xs font-black dark:text-white text-right">₦{tx.amount.toLocaleString()}</td>
                                           </tr>
                                         );
                                       })}
