@@ -86,18 +86,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onUpdateUser({ 
        ...user, 
        verification: { 
-          businessName: user.storeName || 'Merchant', 
+          ...(user.verification || {}),
+          businessName: user.storeName || user.verification?.businessName || 'Merchant', 
           businessAddress: user.verification?.businessAddress || 'Global Registry', 
           country: user.country || 'Global', 
           phoneNumber: user.verification?.phoneNumber || '000', 
-          profilePictureUrl: '', 
+          // Preserve existing docs/pics if any, otherwise default
+          profilePictureUrl: user.verification?.profilePictureUrl || '', 
           verificationStatus: 'verified', 
-          productSamples: [], 
+          identityApproved: false, // CRITICAL: Explicitly Unapproved
+          productSamples: user.verification?.productSamples || [], 
           approvalDate: Date.now() 
        },
        rentPaid: false // Ensure bypass requires rental fee
     });
-    alert(`Store ${user.storeName} authorized for Initial Bypass. Rental fee protocol initiated.`);
+    alert(`Store ${user.storeName} authorized for Initial Bypass. Rental fee protocol initiated. Identity remains Unverified.`);
   };
 
   const handleApproveIdentity = (user: User) => {
@@ -278,7 +281,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <div className="space-y-2">
                              <div className="flex items-center gap-3">
                                 <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${u.verification?.identityApproved ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
-                                    {u.verification?.identityApproved ? 'Authenticated' : u.verification?.verificationStatus === 'verified' ? 'Active Trial' : 'Initial Audit'}
+                                    {u.verification?.identityApproved ? 'Authenticated' : u.verification?.verificationStatus === 'verified' ? 'Active (ID Pending)' : 'Initial Audit'}
                                 </span>
                              </div>
                              <p className="text-xs font-black text-indigo-600">Vol: ₦{sales.toLocaleString()}</p>

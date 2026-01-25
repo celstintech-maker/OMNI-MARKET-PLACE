@@ -22,7 +22,7 @@ interface SellerDashboardProps {
 export const SellerDashboard: React.FC<SellerDashboardProps> = ({ 
   user, products, adminConfig, disputes, transactions, categories, reviews, onAddProduct, onDeleteProduct, onUpdateUser, onBatchAddProducts, onUpdateProduct
 }) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'finance' | 'settings' | 'ai' | 'orders' | 'compliance'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'finance' | 'settings' | 'ai' | 'orders' | 'compliance' | 'analytics'>('inventory');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkCsvText, setBulkCsvText] = useState('');
@@ -80,6 +80,43 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       counts[t.productId].revenue += t.amount;
     });
     return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [myTransactions]);
+
+  // Comprehensive Analytics
+  const analyticsData = useMemo(() => {
+    // 1. Sales Trend (Group by Date) - Last 7 unique activity days or just chronological
+    const salesByTimestamp: Record<number, number> = {};
+    
+    myTransactions.forEach(t => {
+      const d = new Date(t.timestamp);
+      d.setHours(0,0,0,0);
+      const time = d.getTime();
+      salesByTimestamp[time] = (salesByTimestamp[time] || 0) + t.amount;
+    });
+
+    const trend = Object.keys(salesByTimestamp).map(ts => parseInt(ts)).sort((a,b) => a - b).map(ts => ({
+      date: new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      amount: salesByTimestamp[ts]
+    }));
+
+    // Normalize for chart (last 7 points or all if less)
+    const displayTrend = trend.slice(-10); 
+    const maxTrendValue = Math.max(...displayTrend.map(d => d.amount), 1);
+
+    // 2. Demographics (Group by City)
+    const locationCounts: Record<string, number> = {};
+    myTransactions.forEach(t => {
+      const loc = t.billingDetails.city?.trim() || 'Unknown';
+      locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+    });
+    
+    const totalOrders = myTransactions.length;
+    const demographics = Object.entries(locationCounts)
+      .map(([name, count]) => ({ name, count, percentage: (count / totalOrders) * 100 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return { displayTrend, maxTrendValue, demographics };
   }, [myTransactions]);
 
   // Seller Rating Calculation
@@ -377,7 +414,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            </p>
            {/* Mobile Block Menu */}
            <div className="grid grid-cols-2 md:flex gap-2 md:gap-6 mt-6 md:overflow-x-auto no-scrollbar">
-             {['inventory', 'orders', 'ai', 'finance', 'compliance', 'settings'].map(tab => (
+             {['inventory', 'orders', 'analytics', 'finance', 'ai', 'compliance', 'settings'].map(tab => (
                <button 
                 key={tab} 
                 onClick={() => { setActiveTab(tab as any); setFilterLowStock(false); }} 
@@ -443,6 +480,99 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
+      {activeTab === 'analytics' && (
+        <div className="space-y-12 animate-slide-up">
+           {/* Sales Trend Section */}
+           <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-gray-100 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-8">
+                 <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Revenue Trajectory</h3>
+                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last 10 Activity Days</span>
+              </div>
+              
+              {analyticsData.displayTrend.length === 0 ? (
+                 <div className="h-64 flex items-center justify-center text-gray-400 font-bold text-xs uppercase">Not enough data points</div>
+              ) : (
+                 <div className="h-64 flex items-end gap-2 sm:gap-4">
+                    {analyticsData.displayTrend.map((point, i) => (
+                       <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
+                          <div className="absolute bottom-full mb-2 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                             {user.currencySymbol}{point.amount.toLocaleString()}
+                          </div>
+                          <div 
+                             className="w-full bg-indigo-100 dark:bg-indigo-900/30 rounded-t-xl relative overflow-hidden group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors"
+                             style={{ height: `${(point.amount / analyticsData.maxTrendValue) * 100}%`, minHeight: '10%' }}
+                          >
+                             <div className="absolute bottom-0 left-0 right-0 top-0 bg-indigo-600 opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                          </div>
+                          <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest rotate-0 sm:rotate-0 -rotate-45 origin-left truncate w-full text-center">{point.date}</p>
+                       </div>
+                    ))}
+                 </div>
+              )}
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Demographics Section */}
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-gray-100 dark:border-slate-800">
+                 <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Customer Demographics</h3>
+                 {analyticsData.demographics.length === 0 ? (
+                    <p className="text-gray-400 text-xs font-bold">No location data available.</p>
+                 ) : (
+                    <div className="space-y-6">
+                       {analyticsData.demographics.map((loc, idx) => (
+                          <div key={idx} className="space-y-2">
+                             <div className="flex justify-between items-end">
+                                <p className="text-xs font-black uppercase dark:text-white">{loc.name}</p>
+                                <p className="text-[9px] font-bold text-gray-400">{loc.percentage.toFixed(1)}% ({loc.count} Orders)</p>
+                             </div>
+                             <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${loc.percentage}%` }}></div>
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+                 )}
+              </div>
+
+              {/* Product Performance Table */}
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-gray-100 dark:border-slate-800">
+                 <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Asset Performance</h3>
+                 {topSelling.length === 0 ? (
+                    <p className="text-gray-400 text-xs font-bold">No sales data recorded.</p>
+                 ) : (
+                    <div className="overflow-x-auto">
+                       <table className="w-full text-left">
+                          <thead>
+                             <tr className="border-b dark:border-slate-800 text-[9px] font-black uppercase text-gray-400 tracking-widest">
+                                <th className="pb-3">Product</th>
+                                <th className="pb-3 text-right">Vol</th>
+                                <th className="pb-3 text-right">Rev</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y dark:divide-slate-800">
+                             {topSelling.map((item, idx) => (
+                                <tr key={idx}>
+                                   <td className="py-4">
+                                      <div className="flex items-center gap-3">
+                                         <span className="text-xs font-black text-indigo-300">#{idx + 1}</span>
+                                         <p className="font-bold text-xs dark:text-white truncate max-w-[120px]">{item.name}</p>
+                                      </div>
+                                   </td>
+                                   <td className="py-4 text-right text-xs font-bold text-gray-500">{item.count}</td>
+                                   <td className="py-4 text-right text-xs font-black text-indigo-600 dark:text-indigo-400">
+                                      {user.currencySymbol || '₦'}{item.revenue.toLocaleString()}
+                                   </td>
+                                </tr>
+                             ))}
+                          </tbody>
+                       </table>
+                    </div>
+                 )}
+              </div>
+           </div>
+        </div>
+      )}
+
       {activeTab === 'finance' && (
         <div className="space-y-12 animate-slide-up">
            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -466,29 +596,12 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800">
-                 <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Top Performing Assets</h3>
-                 {topSelling.length === 0 ? (
-                    <p className="text-gray-400 text-xs font-bold">No sales data recorded.</p>
-                 ) : (
-                    <div className="space-y-4">
-                       {topSelling.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl">
-                             <div className="flex items-center gap-4">
-                                <span className="text-xl font-black text-indigo-200">#{idx + 1}</span>
-                                <div>
-                                   <p className="font-bold text-xs dark:text-white">{item.name}</p>
-                                   <p className="text-[9px] text-gray-400 font-bold uppercase">{item.count} Units Sold</p>
-                                </div>
-                             </div>
-                             <p className="font-black text-xs text-indigo-600">{user.currencySymbol || '₦'}{item.revenue.toLocaleString()}</p>
-                          </div>
-                       ))}
-                    </div>
-                 )}
-              </div>
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800">
                  <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Recent Payouts</h3>
                  <p className="text-gray-400 text-xs font-bold">Automatic settlements occur every 72 hours.</p>
+                 <div className="mt-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 text-center">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Next Scheduled Batch</p>
+                    <p className="text-sm font-bold dark:text-white mt-1">Friday, 12:00 PM GMT+1</p>
+                 </div>
               </div>
            </div>
         </div>

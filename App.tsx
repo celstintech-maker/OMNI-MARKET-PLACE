@@ -101,7 +101,9 @@ function App() {
   const activeStore = stores.find(s => s.name === (currentView.startsWith('store/') ? decodeURIComponent(currentView.split('/')[1]) : ''));
 
   const handleLogin = (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string) => {
+    // Exact match for role-specific login
     const existing = users.find(u => u.email === email && u.role === role);
+    
     if (existing) {
       if (existing.pin === pin) {
         setCurrentUser(existing);
@@ -110,6 +112,14 @@ function App() {
         alert("Invalid PIN");
       }
     } else {
+      // Check if email exists under a DIFFERENT role to prevent duplicate accounts/confusion
+      const emailTaken = users.find(u => u.email === email);
+      if (emailTaken) {
+         alert(`Account exists as a ${emailTaken.role}. Please switch the toggle above to '${emailTaken.role}' to log in.`);
+         return;
+      }
+
+      // Proceed with Registration
       const newUser: User = {
         id: `u-${Date.now()}`,
         name: email.split('@')[0],
@@ -141,7 +151,9 @@ function App() {
           status: 'active'
         }]);
       }
-      setCurrentView('home');
+      
+      // Redirect to appropriate dashboard immediately after registration
+      setCurrentView(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
     }
   };
 
