@@ -66,9 +66,13 @@ export const Layout: React.FC<LayoutProps> = ({
               onClick={() => { onNavigate('home'); window.location.hash = '#/home'; }} 
               className="flex items-center gap-2 cursor-pointer shrink-0"
             >
-              <h1 className="text-xl sm:text-3xl font-black text-indigo-600 dark:text-white tracking-tighter uppercase leading-none">
-                {config.siteName}
-              </h1>
+              {config.logoUrl ? (
+                <img src={config.logoUrl} alt={config.siteName} className="h-8 w-auto object-contain" />
+              ) : (
+                <h1 className="text-xl sm:text-3xl font-black text-indigo-600 dark:text-white tracking-tighter uppercase leading-none">
+                  {config.siteName}
+                </h1>
+              )}
             </div>
             
             {/* Navigation Menu */}

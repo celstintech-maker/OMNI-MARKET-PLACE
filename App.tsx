@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig } from './types';
 import { CATEGORIES, MOCK_PRODUCTS, MOCK_STORES } from './constants';
@@ -20,6 +19,7 @@ import { ChatSupport } from './components/ChatSupport';
 
 const INITIAL_CONFIG: SiteConfig = {
   siteName: 'OMNI MARKET',
+  logoUrl: '',
   heroTitle: 'OMNI MARKETPLACE',
   heroSubtitle: 'GLOBAL COMMERCE REIMAGINED',
   heroBackgroundUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop',

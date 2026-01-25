@@ -57,7 +57,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Try process.env first, then fallback to siteConfig key
     const apiKey = process.env.API_KEY || siteConfig.geminiApiKey;
     if (!apiKey) {
-      setAiOutput("API Key missing. Enter key manually below if using a preview environment.");
+      setAiOutput("API Key missing. Please ensure 'API_KEY' is set in your Vercel Project Settings (Environment Variables) and redeploy, or enter a key manually below.");
       return;
     }
     setAiLoading(true);
@@ -197,6 +197,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     // Reset to allow selecting same file if needed
     e.target.value = '';
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onUpdateConfig({
+          ...siteConfig,
+          logoUrl: reader.result as string
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const getSellerSales = (sellerId: string) => {
@@ -505,6 +519,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Media */}
               <div className="md:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-6">
                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Media Assets</h3>
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Brand Logo</label>
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-xl border border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                            {siteConfig.logoUrl ? (
+                                <img src={siteConfig.logoUrl} className="w-full h-full object-contain" alt="Logo" />
+                            ) : (
+                                <span className="text-[9px] text-gray-400">No Logo</span>
+                            )}
+                        </div>
+                        <div className="flex-1">
+                             <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleLogoUpload}
+                                className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-medium text-xs outline-none border dark:border-slate-700"
+                            />
+                            {siteConfig.logoUrl && (
+                                <button 
+                                  onClick={() => onUpdateConfig({...siteConfig, logoUrl: ''})}
+                                  className="text-[9px] text-red-500 font-bold mt-1 uppercase hover:underline"
+                                >
+                                  Remove Logo
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                 </div>
                  <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Hero Background Image URL</label>
                     <input 

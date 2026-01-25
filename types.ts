@@ -189,6 +189,7 @@ export interface Transaction {
 
 export interface SiteConfig {
   siteName: string;
+  logoUrl?: string;
   heroTitle: string;
   heroSubtitle: string;
   heroBackgroundUrl?: string;
