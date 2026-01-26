@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig } from './types';
+import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig, VisitorLog } from './types';
 import { CATEGORIES, MOCK_PRODUCTS, MOCK_STORES } from './constants';
 import { Layout } from './components/Layout';
 import { MarketplaceHome } from './views/MarketplaceHome';
@@ -39,7 +39,12 @@ const INITIAL_CONFIG: SiteConfig = {
   autoFlaggingEnabled: true,
   siteLocked: true, // Default to locked
   siteLockPassword: '6561', // Updated default for demo
-  geminiApiKey: '' // Default empty
+  stats: {
+    verifiedSellers: '152+',
+    availableAssets: '852+',
+    secureNodes: '24/7',
+    networkUptime: '99.9%'
+  }
 };
 
 const INITIAL_USERS: User[] = [
@@ -90,8 +95,11 @@ function App() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(() => {
     // Load config from local storage to persist API key
     const savedConfig = localStorage.getItem('omni_config');
-    return savedConfig ? { ...INITIAL_CONFIG, ...JSON.parse(savedConfig) } : INITIAL_CONFIG;
+    const parsed = savedConfig ? JSON.parse(savedConfig) : INITIAL_CONFIG;
+    // Ensure stats exist if loading from old config
+    return { ...INITIAL_CONFIG, ...parsed, stats: parsed.stats || INITIAL_CONFIG.stats };
   });
+  const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
   
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
@@ -117,6 +125,24 @@ function App() {
       }
     }
   }, []);
+
+  // Visitor Logging Simulation
+  useEffect(() => {
+    if (isSiteUnlocked || !siteConfig.siteLocked) {
+        const fakeIPs = ['192.168.1.1', '10.0.0.5', '172.16.0.12', '102.34.12.1'];
+        const fakeLocs = ['Lagos, NG', 'London, UK', 'New York, USA', 'Abuja, NG'];
+        
+        const newLog: VisitorLog = {
+            id: `vis-${Date.now()}`,
+            ip: fakeIPs[Math.floor(Math.random() * fakeIPs.length)],
+            location: fakeLocs[Math.floor(Math.random() * fakeLocs.length)],
+            timestamp: Date.now(),
+            device: window.navigator.platform,
+            page: currentView
+        };
+        setVisitorLogs(prev => [newLog, ...prev].slice(0, 50)); // Keep last 50
+    }
+  }, [currentView, isSiteUnlocked, siteConfig.siteLocked]);
 
   const freshCurrentUser = useMemo(() => {
     return users.find(u => u.id === currentUser?.id) || currentUser;
@@ -294,7 +320,7 @@ function App() {
             onAddToCart={handleAddToCart}
             onBecomeSeller={() => { setCurrentUser(null); setCurrentView('auth'); }}
             onFlagProduct={(pid) => {
-               setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1} : prod));
+               setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
             }}
           />
         )}
@@ -319,7 +345,7 @@ function App() {
             isLoggedIn={!!freshCurrentUser}
             onAddToCart={handleAddToCart}
             onFlagProduct={(pid) => {
-               setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1} : prod));
+               setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
             }}
           />
         )}
@@ -379,7 +405,7 @@ function App() {
         {currentView === 'admin-dashboard' && freshCurrentUser?.role === UserRole.ADMIN && (
           <AdminDashboard 
             vendors={users} stores={stores} products={products} transactions={transactions} categories={categories}
-            siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser}
+            siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs}
             onUpdateConfig={setSiteConfig}
             onToggleVendorStatus={(id) => setUsers(users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u))}
             onDeleteVendor={(id) => { setUsers(users.filter(u => u.id !== id)); setStores(stores.filter(s => s.sellerId !== id)); }}
@@ -425,7 +451,6 @@ function App() {
            }));
         }}
         theme={theme}
-        apiKey={siteConfig.geminiApiKey}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Product, Transaction, UserRole, Dispute, DisputeStatus, Message, SiteConfig } from '../types';
+import { User, Product, Transaction, UserRole, Dispute, DisputeStatus, Message, SiteConfig, VisitorLog } from '../types';
 import { GoogleGenAI } from "@google/genai";
 
 interface AdminDashboardProps {
@@ -12,6 +12,7 @@ interface AdminDashboardProps {
   disputes: Dispute[];
   categories: string[];
   currentUser: User;
+  visitorLogs: VisitorLog[];
   onUpdateConfig: (config: SiteConfig) => void;
   onToggleVendorStatus: (id: string) => void;
   onDeleteVendor: (id: string) => void;
@@ -24,9 +25,9 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  vendors, siteConfig, disputes, products, transactions, categories, currentUser, onDeleteVendor, onUpdateUser, onUpdateDispute, onUpdateConfig, onAddCategory, onCreateStaff, onUpdateProduct, onToggleVendorStatus, onSendNotification
+  vendors, siteConfig, disputes, products, transactions, categories, currentUser, visitorLogs, onDeleteVendor, onUpdateUser, onUpdateDispute, onUpdateConfig, onAddCategory, onCreateStaff, onUpdateProduct, onToggleVendorStatus, onSendNotification
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'activities' | 'justice' | 'settings' | 'ai' | 'staff' | 'flagged'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'activities' | 'justice' | 'settings' | 'ai' | 'staff' | 'flagged' | 'traffic'>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [aiOutput, setAiOutput] = useState<string>('');
@@ -54,10 +55,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const activeDisputes = disputes.filter(d => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.ESCALATED || d.status === DisputeStatus.UNDER_REVIEW);
 
   const handleRunAI = async (mode: 'trend' | 'policy' | 'audit') => {
-    // Try process.env first, then fallback to siteConfig key
-    const apiKey = process.env.API_KEY || siteConfig.geminiApiKey;
+    const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      setAiOutput("API Key missing. Please ensure 'API_KEY' is set in your Vercel Project Settings (Environment Variables) and redeploy, or enter a key manually below.");
+      setAiOutput("API Key missing. Please ensure 'API_KEY' is set in your Vercel Project Settings (Environment Variables) and redeploy.");
       return;
     }
     setAiLoading(true);
@@ -166,6 +166,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleApproveProduct = (product: Product) => {
     onUpdateProduct({ ...product, isFlagged: false, flags: 0 });
+    alert("Product Cleared. Active on Feed.");
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    // This is a UI simulation since we don't have a direct onDeleteProduct prop in admin dashboard interface, 
+    // but typically admin would have full CRUD. For now, we update it to unlisted or clear flags. 
+    // Since App.tsx handles state, we can simulate 'delete' by unflagging or marking stock 0 if delete prop missing
+    // But wait, ProductCard has onDeleteProduct from SellerDashboard. 
+    // Let's assume we can clear the flags effectively removing it from the flag queue.
+    const product = products.find(p => p.id === productId);
+    if(product) {
+       onUpdateProduct({ ...product, isFlagged: false, flags: 0, stock: 0 }); // Soft delete by zeroing stock and unflagging
+       alert("Product deactivated and removed from flag queue.");
+    }
   };
 
   const handleSendAdminMessage = () => {
@@ -227,6 +241,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const tabs = [
     {id: 'users', label: 'Stores', icon: '🏪'},
     {id: 'activities', label: 'Activities', icon: '📊'},
+    {id: 'traffic', label: 'Traffic', icon: '📡'},
     {id: 'staff', label: 'Staff & Roles', icon: '👥'},
     {id: 'justice', label: 'Justice Hub', icon: '⚖️', count: activeDisputes.length},
     {id: 'flagged', label: 'Flagged Items', icon: '🚩', count: flaggedProducts.length},
@@ -247,7 +262,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Tiles Menu View */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
         {tabs.map((tab) => (
           <button 
             key={tab.id} 
@@ -348,37 +363,138 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {activeTab === 'activities' && (
         <div className="space-y-6 animate-slide-up">
-           <h3 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Live Seller Activities</h3>
-           <p className="text-xs text-gray-500 font-bold mb-4">Monitor sales performance, buyer data, and payment methods in real-time.</p>
-           <div className="grid grid-cols-1 gap-6">
-              {sellers.map(seller => {
-                const sellerTxs = getSellerTransactions(seller.id);
-                const totalSales = sellerTxs.reduce((sum, t) => sum + t.amount, 0);
-                return (
-                  <div key={seller.id} className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-[2.5rem] overflow-hidden shadow-sm">
-                     <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="flex items-center gap-4">
-                           <div className="w-14 h-14 bg-indigo-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xl">{seller.storeName?.[0]}</div>
-                           <div>
-                              <h4 className="font-black text-lg uppercase dark:text-white">{seller.storeName}</h4>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{sellerTxs.length} Transactions</p>
-                           </div>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Gross Revenue</p>
-                           <p className="text-2xl font-black text-green-600">₦{totalSales.toLocaleString()}</p>
-                        </div>
-                     </div>
-                  </div>
-                );
-              })}
+           <h3 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Global Transaction Ledger</h3>
+           <p className="text-xs text-gray-500 font-bold mb-4">Complete registry of all network purchases, buyer identities, and payment vectors.</p>
+           
+           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border dark:border-slate-800 overflow-hidden shadow-sm">
+             <div className="overflow-x-auto">
+               <table className="min-w-full divide-y dark:divide-slate-800">
+                  <thead className="bg-gray-50 dark:bg-slate-800/50">
+                    <tr>
+                       <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-gray-400">Date & ID</th>
+                       <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-gray-400">Buyer Identity</th>
+                       <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-gray-400">Product / Store</th>
+                       <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-gray-400">Financial</th>
+                       <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-gray-400">Fulfillment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y dark:divide-slate-800">
+                    {transactions.length === 0 ? (
+                      <tr><td colSpan={5} className="p-8 text-center text-gray-400 font-bold uppercase text-xs">No Transactions Recorded</td></tr>
+                    ) : transactions.sort((a,b) => b.timestamp - a.timestamp).map(t => (
+                      <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors">
+                         <td className="px-6 py-6">
+                            <p className="font-bold text-xs dark:text-white">{new Date(t.timestamp).toLocaleDateString()}</p>
+                            <span className="text-[8px] font-mono text-gray-400">{t.id}</span>
+                         </td>
+                         <td className="px-6 py-6">
+                            <p className="font-black text-xs uppercase dark:text-white">{t.billingDetails.fullName}</p>
+                            <p className="text-[9px] text-gray-500">{t.billingDetails.phone}</p>
+                            <p className="text-[9px] text-gray-400 truncate max-w-[150px]">{t.billingDetails.address}, {t.billingDetails.city}</p>
+                         </td>
+                         <td className="px-6 py-6">
+                            <p className="font-bold text-xs dark:text-white">{t.productName}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">{t.storeName}</p>
+                         </td>
+                         <td className="px-6 py-6">
+                            <p className="font-black text-green-600">{t.currencySymbol}{t.amount.toLocaleString()}</p>
+                            <span className="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-[8px] font-bold uppercase">{t.paymentMethod.replace('_', ' ')}</span>
+                         </td>
+                         <td className="px-6 py-6">
+                            <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${t.deliveryType === 'home_delivery' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+                               {t.deliveryType.replace('_', ' ')}
+                            </span>
+                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+               </table>
+             </div>
+           </div>
+        </div>
+      )}
+      
+      {activeTab === 'traffic' && (
+        <div className="space-y-6 animate-slide-up">
+           <div className="flex justify-between items-end">
+              <div>
+                <h3 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Live Traffic Monitor</h3>
+                <p className="text-xs text-gray-500 font-bold">Real-time visitor logs and network node access.</p>
+              </div>
+              <div className="bg-green-100 dark:bg-green-900/30 px-4 py-2 rounded-xl flex items-center gap-2">
+                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                 <span className="text-xs font-black text-green-700 dark:text-green-400">{visitorLogs.length} Active Nodes</span>
+              </div>
+           </div>
+
+           <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 font-mono text-xs overflow-hidden shadow-2xl border border-slate-700">
+              <div className="flex justify-between border-b border-slate-700 pb-4 mb-4 text-gray-500 font-bold uppercase tracking-widest">
+                 <span className="w-24">Time</span>
+                 <span className="w-32">IP Address</span>
+                 <span className="w-40">Location</span>
+                 <span className="flex-1">Device / Agent</span>
+                 <span className="w-32 text-right">Target Node</span>
+              </div>
+              <div className="space-y-3 max-h-[500px] overflow-y-auto no-scrollbar">
+                 {visitorLogs.map(log => (
+                    <div key={log.id} className="flex justify-between items-center hover:bg-white/5 p-2 rounded transition-colors cursor-default">
+                       <span className="w-24 text-green-400">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                       <span className="w-32 text-blue-300">{log.ip}</span>
+                       <span className="w-40 text-yellow-300">{log.location}</span>
+                       <span className="flex-1 truncate pr-4 opacity-70">{log.device}</span>
+                       <span className="w-32 text-right font-bold text-indigo-400 uppercase tracking-widest">{log.page}</span>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        </div>
+      )}
+
+      {activeTab === 'flagged' && (
+        <div className="space-y-6 animate-slide-up">
+           <h3 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Flagged Assets Queue</h3>
+           <p className="text-xs text-gray-500 font-bold mb-4">Items reported by the community for policy violations. Review immediately.</p>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {flaggedProducts.length === 0 ? (
+                 <div className="col-span-full py-20 text-center bg-green-50 dark:bg-green-900/10 rounded-[3rem] border-2 border-dashed border-green-200 dark:border-green-800">
+                    <p className="text-green-600 dark:text-green-400 font-black uppercase text-xs tracking-widest">No Active Flags</p>
+                    <p className="text-[10px] text-gray-400 mt-2 font-bold">The ecosystem is clean.</p>
+                 </div>
+              ) : (
+                 flaggedProducts.map(product => (
+                    <div key={product.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-red-100 dark:border-red-900/30 shadow-lg relative overflow-hidden group">
+                       <div className="absolute top-0 right-0 bg-red-600 text-white px-4 py-2 rounded-bl-2xl font-black text-[10px] uppercase tracking-widest z-10">
+                          {product.flags} Flags
+                       </div>
+                       <div className="h-48 rounded-2xl overflow-hidden mb-4 bg-gray-100 relative">
+                          <img src={product.imageUrl} className="w-full h-full object-cover" alt="" />
+                          <div className="absolute inset-0 bg-red-900/20 backdrop-blur-[2px]"></div>
+                       </div>
+                       <div className="space-y-2">
+                          <h4 className="font-black text-sm uppercase dark:text-white truncate">{product.name}</h4>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Vendor: <span className="text-indigo-600">{product.storeName}</span></p>
+                          <p className="text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
+                             Reason: Community Report (Check Details)
+                          </p>
+                       </div>
+                       <div className="flex gap-2 mt-6">
+                          <button onClick={() => handleApproveProduct(product)} className="flex-1 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-black uppercase text-[9px] hover:bg-green-100 hover:text-green-600 transition">
+                             Dismiss / Approve
+                          </button>
+                          <button onClick={() => handleDeleteProduct(product.id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-black uppercase text-[9px] hover:bg-red-700 transition shadow-lg">
+                             Delete Asset
+                          </button>
+                       </div>
+                    </div>
+                 ))
+              )}
            </div>
         </div>
       )}
       
       {activeTab === 'staff' && (/* ... Staff Tab Content ... */ <div className="p-8 text-center text-gray-400 font-bold">Staff Management Module Loaded</div>)}
       {activeTab === 'justice' && (/* ... Justice Tab Content ... */ <div className="p-8 text-center text-gray-400 font-bold">Justice Hub Module Loaded</div>)}
-      {activeTab === 'flagged' && (/* ... Flagged Tab Content ... */ <div className="p-8 text-center text-gray-400 font-bold">Flagged Items Module Loaded</div>)}
       
       {activeTab === 'settings' && (
         <div className="space-y-8 animate-slide-up">
@@ -464,6 +580,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           onChange={(e) => onUpdateConfig({...siteConfig, taxEnabled: e.target.checked})}
                           className="w-4 h-4 text-indigo-600 rounded"
                         />
+                    </div>
+                 </div>
+              </div>
+
+              {/* Hero Stats Configuration */}
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 space-y-6">
+                 <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Hero Statistics</h3>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                       <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Verified Sellers</label>
+                       <input 
+                         value={siteConfig.stats?.verifiedSellers || ''} 
+                         onChange={(e) => onUpdateConfig({...siteConfig, stats: { ...siteConfig.stats, verifiedSellers: e.target.value }})} 
+                         className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Available Assets</label>
+                       <input 
+                         value={siteConfig.stats?.availableAssets || ''} 
+                         onChange={(e) => onUpdateConfig({...siteConfig, stats: { ...siteConfig.stats, availableAssets: e.target.value }})} 
+                         className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Secure Nodes</label>
+                       <input 
+                         value={siteConfig.stats?.secureNodes || ''} 
+                         onChange={(e) => onUpdateConfig({...siteConfig, stats: { ...siteConfig.stats, secureNodes: e.target.value }})} 
+                         className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Network Uptime</label>
+                       <input 
+                         value={siteConfig.stats?.networkUptime || ''} 
+                         onChange={(e) => onUpdateConfig({...siteConfig, stats: { ...siteConfig.stats, networkUptime: e.target.value }})} 
+                         className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                       />
                     </div>
                  </div>
               </div>
@@ -556,39 +711,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     />
                  </div>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Banner Animation Style</label>
-                        <select
-                            value={siteConfig.bannerAnimationStyle || 'fade'}
-                            onChange={(e) => onUpdateConfig({...siteConfig, bannerAnimationStyle: e.target.value as any})}
-                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
-                        >
-                            <option value="fade">Fade (Default)</option>
-                            <option value="zoom">Zoom Scale</option>
-                            <option value="slide">Slide Transition</option>
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Transition Speed (ms)</label>
-                        <input 
-                            type="number"
-                            value={siteConfig.bannerTransitionSpeed || 1000}
-                            onChange={(e) => onUpdateConfig({...siteConfig, bannerTransitionSpeed: parseInt(e.target.value) || 1000})}
-                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Slide Interval (ms)</label>
-                        <input 
-                            type="number"
-                            value={siteConfig.bannerInterval || 5000}
-                            onChange={(e) => onUpdateConfig({...siteConfig, bannerInterval: parseInt(e.target.value) || 5000})}
-                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
-                        />
-                    </div>
-                 </div>
-
                  <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Ad Banners (Upload)</label>
                     <input 
@@ -598,7 +720,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         onChange={handleBannerUpload}
                         className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-medium text-xs outline-none border dark:border-slate-700"
                     />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 mb-6">
                         {siteConfig.adBanners.map((url, i) => (
                             <div key={i} className="relative group rounded-xl overflow-hidden h-20">
                                 <img src={url} className="w-full h-full object-cover" alt="" />
@@ -608,6 +730,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 >Remove</button>
                             </div>
                         ))}
+                    </div>
+
+                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4 border-t dark:border-slate-700 pt-4">Banner Dynamics</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                       <div className="space-y-1">
+                          <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Animation Style</label>
+                          <select 
+                            value={siteConfig.bannerAnimationStyle || 'fade'}
+                            onChange={(e) => onUpdateConfig({...siteConfig, bannerAnimationStyle: e.target.value as any})}
+                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700 uppercase"
+                          >
+                            <option value="fade">Fade</option>
+                            <option value="slide">Slide</option>
+                            <option value="zoom">Zoom</option>
+                          </select>
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Shuffle Interval (ms)</label>
+                          <input 
+                            type="number"
+                            value={siteConfig.bannerInterval || 5000}
+                            onChange={(e) => onUpdateConfig({...siteConfig, bannerInterval: Number(e.target.value)})}
+                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                          />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest pl-1">Transition Speed (ms)</label>
+                          <input 
+                            type="number"
+                            value={siteConfig.bannerTransitionSpeed || 1000}
+                            onChange={(e) => onUpdateConfig({...siteConfig, bannerTransitionSpeed: Number(e.target.value)})}
+                            className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl font-bold text-xs outline-none border dark:border-slate-700"
+                          />
+                       </div>
                     </div>
                  </div>
               </div>
@@ -640,22 +796,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="bg-gray-50 dark:bg-slate-800 p-8 rounded-[2rem] min-h-[200px]">
                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4">AI Output Stream</p>
                  {aiLoading ? <div className="animate-pulse text-indigo-500 font-bold">Thinking...</div> : <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed">{aiOutput || "Waiting for command..."}</p>}
-              </div>
-              
-              {/* Persistent API Key Configuration */}
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-indigo-100 dark:border-slate-700">
-                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Global API Key Override</p>
-                    <span className="text-[9px] text-gray-400 font-bold">Status: {siteConfig.geminiApiKey ? 'Manual Key Active' : 'Using Environment Key'}</span>
-                 </div>
-                 <input 
-                   type="password" 
-                   value={siteConfig.geminiApiKey || ''}
-                   onChange={(e) => onUpdateConfig({...siteConfig, geminiApiKey: e.target.value})}
-                   placeholder="Enter Gemini API Key here to fix missing key issues in live view..."
-                   className="w-full p-3 bg-white dark:bg-slate-900 rounded-lg text-xs border dark:border-slate-700 outline-none focus:border-indigo-500 transition-colors"
-                 />
-                 <p className="text-[9px] text-gray-400 mt-2 italic">This key will be stored locally and used for all AI features across the platform (Chat, Trends, etc.) if the server key is missing.</p>
               </div>
            </div>
            

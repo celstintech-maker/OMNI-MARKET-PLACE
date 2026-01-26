@@ -185,6 +185,17 @@ export interface Transaction {
   billingDetails: BillingDetails;
   deliveryType: DeliveryType;
   buyerId?: string;
+  proofOfPayment?: string; // Base64 image
+  paymentReference?: string; // Sender name
+}
+
+export interface VisitorLog {
+  id: string;
+  ip: string; // Simulated
+  location: string;
+  timestamp: number;
+  device: string;
+  page: string;
 }
 
 export interface SiteConfig {
@@ -212,5 +223,10 @@ export interface SiteConfig {
   autoFlaggingEnabled: boolean;
   siteLocked: boolean;
   siteLockPassword?: string;
-  geminiApiKey?: string; // Added for manual API Key override
+  stats: {
+    verifiedSellers: string;
+    availableAssets: string;
+    secureNodes: string;
+    networkUptime: string;
+  };
 }

@@ -57,86 +57,114 @@ const BackgroundSlideshow = ({ products, customUrl }: { products: Product[], cus
   );
 };
 
-const BannerSlider = ({ banners, animationStyle = 'fade', transitionSpeed = 1000, interval = 5000 }: { banners: string[], animationStyle?: 'fade' | 'slide' | 'zoom', transitionSpeed?: number, interval?: number }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const BannerTiles = ({ banners, config }: { banners: string[], config: SiteConfig }) => {
+  const [displayBanners, setDisplayBanners] = useState<string[]>([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [selectedBanner, setSelectedBanner] = useState<string | null>(null);
 
+  // Initialize display
   useEffect(() => {
-    if (!banners || banners.length === 0) return;
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % banners.length);
-    }, interval);
-    return () => clearInterval(timer);
-  }, [banners, banners.length, interval]);
+    if (banners.length > 0) {
+      // Pick up to 3 initially
+      setDisplayBanners(banners.slice(0, 3));
+    }
+  }, [banners]);
+
+  // Shuffling Logic
+  useEffect(() => {
+    if (banners.length <= 3) return; // No need to shuffle if we fit all
+
+    const interval = setInterval(() => {
+      setIsTransitioning(true);
+      
+      setTimeout(() => {
+        // Randomly shuffle the full list and pick top 3
+        const shuffled = [...banners].sort(() => Math.random() - 0.5);
+        setDisplayBanners(shuffled.slice(0, 3));
+        setIsTransitioning(false);
+      }, config.bannerTransitionSpeed || 800); // Wait for exit animation before swapping
+
+    }, config.bannerInterval || 5000);
+
+    return () => clearInterval(interval);
+  }, [banners, config.bannerInterval, config.bannerTransitionSpeed]);
+
+  const getAnimationClass = (isActive: boolean) => {
+    const style = config.bannerAnimationStyle || 'fade';
+    if (isActive) return 'opacity-100 scale-100 translate-y-0';
+    
+    switch (style) {
+      case 'zoom': return 'opacity-0 scale-90';
+      case 'slide': return 'opacity-0 translate-y-10';
+      case 'fade':
+      default: return 'opacity-0';
+    }
+  };
 
   if (!banners || banners.length === 0) return null;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 -mt-8 relative z-30 animate-slide-up">
-      <div className="relative w-full aspect-[21/9] md:aspect-[3/1] rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/10 dark:border-slate-800 bg-gray-100 dark:bg-slate-900 group">
-        {banners.map((banner, index) => {
-          let animClass = '';
-          if (animationStyle === 'zoom') {
-             animClass = index === currentIndex ? 'scale-100 opacity-100 z-10' : 'scale-110 opacity-0 z-0';
-          } else if (animationStyle === 'slide') {
-             animClass = index === currentIndex ? 'translate-x-0 z-10' : 'translate-x-full z-0';
-          } else {
-             animClass = index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0';
-          }
-
-          return (
+    <>
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 -mt-8 relative z-30 animate-slide-up">
+        <div className={`grid grid-cols-1 ${displayBanners.length > 1 ? 'md:grid-cols-2' : ''} ${displayBanners.length > 2 ? 'lg:grid-cols-3' : ''} gap-4 sm:gap-6`}>
+          {displayBanners.map((banner, index) => (
             <div
-              key={index}
-              className={`absolute inset-0 transition-all ease-in-out transform ${animClass}`}
-              style={{ transitionDuration: `${transitionSpeed}ms` }}
+              key={`${banner}-${index}`} // Composite key to force animation reset on change if needed, or stable index
+              onClick={() => setSelectedBanner(banner)}
+              className={`
+                relative w-full aspect-[21/9] sm:aspect-[16/9] md:aspect-[3/2] rounded-[2.5rem] overflow-hidden shadow-2xl 
+                border-4 border-white/10 dark:border-slate-800 bg-gray-100 dark:bg-slate-900 group cursor-pointer
+                transition-all ease-in-out
+                ${getAnimationClass(!isTransitioning)}
+              `}
+              style={{ transitionDuration: `${config.bannerTransitionSpeed || 800}ms` }}
             >
               <img
                 src={banner}
                 alt={`Ad Banner ${index + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-500"></div>
+              
+              <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/20 z-20 hover:bg-white/20 transition-colors">
+                 <span className="text-[8px] font-black uppercase tracking-widest text-white shadow-sm">Featured</span>
+              </div>
+              
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                 <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                    <span className="w-10 h-10 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white drop-shadow-lg">View Full Image</span>
+                 </div>
+              </div>
             </div>
-          );
-        })}
-        
-        {/* Indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-          {banners.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                idx === currentIndex 
-                  ? 'bg-white w-8' 
-                  : 'bg-white/40 w-2 hover:bg-white/80'
-              }`}
-            />
           ))}
         </div>
-        
-        {/* Navigation Arrows */}
-        {banners.length > 1 && (
-          <>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length); }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-20"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % banners.length); }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-20"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </>
-        )}
-        
-        <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 z-20">
-           <span className="text-[8px] font-black uppercase tracking-widest text-white">Sponsored</span>
-        </div>
       </div>
-    </div>
+
+      {/* Full Screen Image Modal */}
+      {selectedBanner && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl animate-fade-in"
+          onClick={() => setSelectedBanner(null)}
+        >
+           <div className="relative max-w-[90vw] max-h-[90vh]">
+             <img 
+               src={selectedBanner} 
+               className="max-w-full max-h-[90vh] rounded-[2rem] shadow-2xl border-2 border-white/10 animate-slide-up" 
+               alt="Full Banner"
+             />
+             <button 
+                onClick={(e) => { e.stopPropagation(); setSelectedBanner(null); }}
+                className="absolute -top-4 -right-4 bg-white text-slate-900 p-3 rounded-full hover:bg-gray-200 transition shadow-lg"
+             >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+             </button>
+           </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -144,6 +172,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
   config, products, stores, categories, onNavigateToStore, wishlist, onToggleWishlist, isLoggedIn, currentUser, onAddToCart, onBecomeSeller, onFlagProduct 
 }) => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeStoreFilter, setActiveStoreFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter out products from suspended stores
@@ -156,11 +185,15 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
       if (!activeStoreNames.includes(p.storeName)) return false;
 
       const categoryMatch = activeCategory === 'All' || p.category === activeCategory;
-      const searchMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.storeName.toLowerCase().includes(searchQuery.toLowerCase());
-      return categoryMatch && searchMatch;
+      const storeMatch = activeStoreFilter === 'All' || p.storeName === activeStoreFilter;
+      
+      const searchLower = searchQuery.toLowerCase();
+      const searchMatch = p.name.toLowerCase().includes(searchLower) || 
+                          p.storeName.toLowerCase().includes(searchLower);
+                          
+      return categoryMatch && storeMatch && searchMatch;
     });
-  }, [products, activeCategory, searchQuery, activeStoreNames]);
+  }, [products, activeCategory, activeStoreFilter, searchQuery, activeStoreNames]);
 
   const vendorResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -188,14 +221,14 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-8 max-w-4xl mx-auto pt-4 animate-slide-up animation-delay-300 px-2">
             {[
-              { label: 'Verified Sellers', value: activeStores.length + 150, suffix: '+' },
-              { label: 'Available Assets', value: filteredProducts.length + 850, suffix: '+' },
-              { label: 'Secure Nodes', value: 24, suffix: '/7' },
-              { label: 'Network Uptime', value: 99.9, suffix: '%' }
+              { label: 'Verified Sellers', value: config.stats?.verifiedSellers || '150+' },
+              { label: 'Available Assets', value: config.stats?.availableAssets || '850+' },
+              { label: 'Secure Nodes', value: config.stats?.secureNodes || '24/7' },
+              { label: 'Network Uptime', value: config.stats?.networkUptime || '99.9%' }
             ].map((stat, i) => (
               <div key={i} className="bg-white/10 backdrop-blur-2xl border border-white/10 p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-2xl hover:bg-white/20 transition-all group cursor-default">
                 <p className="text-2xl sm:text-4xl md:text-[42px] font-black text-white leading-none tracking-tighter mb-1 group-hover:text-indigo-400 transition-colors">
-                  {stat.value}{stat.suffix}
+                  {stat.value}
                 </p>
                 <p className="text-[7px] sm:text-[10px] font-black uppercase tracking-widest sm:tracking-[0.3em] text-white/50 group-hover:text-white transition-colors">
                   {stat.label}
@@ -214,7 +247,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search the global registry..."
+                placeholder="Search products or stores..."
                 className="w-full bg-transparent border-none text-white font-black text-lg sm:text-xl outline-none placeholder:text-white/40 py-3 sm:py-4"
               />
             </div>
@@ -252,13 +285,8 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
         </div>
       </section>
 
-      {/* Verified Partner Banners Widget */}
-      <BannerSlider 
-        banners={config.adBanners} 
-        animationStyle={config.bannerAnimationStyle} 
-        transitionSpeed={config.bannerTransitionSpeed} 
-        interval={config.bannerInterval}
-      />
+      {/* Verified Partner Banners Widget - Now with dynamic tile view and config passed */}
+      <BannerTiles banners={config.adBanners} config={config} />
 
       <section id="stores-list" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="text-center space-y-2">
@@ -292,10 +320,30 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
       <section id="browse" className="space-y-8 sm:space-y-12 scroll-mt-24 px-2 sm:px-0">
         <div className="flex flex-col gap-6 border-b dark:border-slate-800 pb-6 sm:pb-8">
-           <div>
-             <h3 className="text-3xl sm:text-4xl font-black tracking-tighter mb-2 dark:text-white">Live Asset Feed</h3>
-             <p className="text-gray-500 font-medium text-sm sm:text-base">Real-time products synced from verified stores.</p>
+           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+             <div>
+               <h3 className="text-3xl sm:text-4xl font-black tracking-tighter mb-2 dark:text-white">Live Asset Feed</h3>
+               <p className="text-gray-500 font-medium text-sm sm:text-base">Real-time products synced from verified stores.</p>
+             </div>
+             
+             {/* Store Filter Dropdown */}
+             <div className="relative">
+                <select 
+                  value={activeStoreFilter}
+                  onChange={(e) => setActiveStoreFilter(e.target.value)}
+                  className="appearance-none bg-gray-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-xs uppercase tracking-widest px-6 py-4 rounded-2xl border-r-8 border-transparent outline-none cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors pr-12 shadow-sm w-full sm:w-auto"
+                >
+                  <option value="All">All Stores</option>
+                  {activeStores.map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                  <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                </div>
+             </div>
            </div>
+
            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-2 px-2">
              {['All', ...categories].map(cat => (
                <button 
@@ -324,7 +372,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
 
         {filteredProducts.length === 0 && (
           <div className="py-20 sm:py-32 text-center bg-gray-50 dark:bg-slate-900/50 rounded-3xl sm:rounded-[4rem] border-2 border-dashed border-gray-100 dark:border-slate-800">
-            <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em]">No identifying store match found</p>
+            <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em]">No matching assets found</p>
           </div>
         )}
       </section>

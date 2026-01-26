@@ -18,6 +18,10 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
   
   // Local state to track selected payment methods per vendor group
   const [selectedMethods, setSelectedMethods] = useState<Record<string, string>>({});
+  
+  // Bank Transfer Proofs
+  const [transferProofs, setTransferProofs] = useState<Record<string, string>>({});
+  const [transferRefs, setTransferRefs] = useState<Record<string, string>>({});
 
   const [billing, setBilling] = useState<BillingDetails>({
     fullName: '',
@@ -71,13 +75,16 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           currencySymbol: item.currencySymbol || '₦',
           paymentMethod: method,
           billingDetails: billing,
-          deliveryType: deliveryType
+          deliveryType: deliveryType,
+          // Attach proof if method is bank_transfer
+          proofOfPayment: method === 'bank_transfer' ? transferProofs[item.sellerId] : undefined,
+          paymentReference: method === 'bank_transfer' ? transferRefs[item.sellerId] : undefined
         };
       });
       onCompletePurchase(newTransactions);
     }
     return () => clearInterval(timer);
-  }, [checkoutStep, countdown, cart, billing, deliveryType, config.commissionRate, config.taxEnabled, config.taxRate, selectedMethods]);
+  }, [checkoutStep, countdown, cart, billing, deliveryType, config.commissionRate, config.taxEnabled, config.taxRate, selectedMethods, transferProofs, transferRefs]);
 
   const totalCartValue = cart.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
 
@@ -96,6 +103,32 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
 
   const handleMethodChange = (sellerId: string, methodId: string) => {
     setSelectedMethods(prev => ({ ...prev, [sellerId]: methodId }));
+  };
+
+  const handleProofUpload = (sellerId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        setTransferProofs(prev => ({ ...prev, [sellerId]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const validatePaymentStep = () => {
+    // Check if bank transfer is selected, ensure proof is uploaded
+    for (const group of vendorGroups) {
+        const method = selectedMethods[group.sellerId] || group.paymentMethod || 'bank_transfer';
+        if (method === 'bank_transfer') {
+            if (!transferProofs[group.sellerId]) {
+                alert(`Please upload proof of payment for ${group.storeName}`);
+                return false;
+            }
+            if (!transferRefs[group.sellerId]) {
+                alert(`Please enter the sender's name for ${group.storeName} transfer`);
+                return false;
+            }
+        }
+    }
+    return true;
   };
 
   if (cart.length === 0) {
@@ -177,7 +210,22 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           ) : checkoutStep === 'billing' ? (
             <div className="bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[3rem] border dark:border-slate-800 shadow-sm space-y-8 animate-slide-up">
               <h3 className="text-3xl font-black uppercase tracking-tighter">Logistics Dossier</h3>
-              <p className="text-xs text-gray-500 font-bold">This billing information will be shared with sellers for order fulfillment, including Payment on Delivery orders.</p>
+              
+              <div className="flex bg-gray-100 dark:bg-slate-800 p-1.5 rounded-xl">
+                <button 
+                  onClick={() => setDeliveryType('home_delivery')} 
+                  className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'home_delivery' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-400'}`}
+                >
+                  Home Delivery
+                </button>
+                <button 
+                  onClick={() => setDeliveryType('instant_pickup')} 
+                  className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'instant_pickup' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-400'}`}
+                >
+                  Instant Pickup
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Full Name</label>
@@ -187,18 +235,23 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Encrypted Email</label>
                     <input type="email" value={billing.email} onChange={e => setBilling({...billing, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="john@omni.link" />
                  </div>
-                 <div className="space-y-1">
+                 <div className="md:col-span-2 space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Phone Number</label>
                     <input type="tel" value={billing.phone} onChange={e => setBilling({...billing, phone: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="+123..." />
                  </div>
-                 <div className="md:col-span-2 space-y-1">
-                    <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Fulfillment Address</label>
-                    <textarea value={billing.address} onChange={e => setBilling({...billing, address: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold h-24 border dark:border-slate-700" placeholder="Street address for delivery location..." />
-                 </div>
-                 <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">City</label>
-                    <input value={billing.city} onChange={e => setBilling({...billing, city: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="City" />
-                 </div>
+                 
+                 {deliveryType === 'home_delivery' && (
+                   <>
+                     <div className="md:col-span-2 space-y-1 animate-fade-in">
+                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Fulfillment Address</label>
+                        <textarea value={billing.address} onChange={e => setBilling({...billing, address: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold h-24 border dark:border-slate-700" placeholder="Street address for delivery location..." />
+                     </div>
+                     <div className="md:col-span-2 space-y-1 animate-fade-in">
+                        <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">City</label>
+                        <input value={billing.city} onChange={e => setBilling({...billing, city: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 rounded-xl outline-none font-bold border dark:border-slate-700" placeholder="City" />
+                     </div>
+                   </>
+                 )}
               </div>
             </div>
           ) : (
@@ -210,17 +263,21 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                     ? seller.enabledPaymentMethods
                     : ['bank_transfer']; // Default to bank transfer if none configured or found
 
-                 const availablePaymentMethods = PAYMENT_METHODS.filter(pm => allowedMethods.includes(pm.id));
+                 // Filter methods: Remove POD if delivery type is instant_pickup
+                 const availablePaymentMethods = PAYMENT_METHODS.filter(pm => {
+                    if (deliveryType === 'instant_pickup' && pm.id === 'pod') return false;
+                    return allowedMethods.includes(pm.id);
+                 });
 
                  // Calculate effective method. 
                  // If the user selected one, use it. 
-                 // Else if the product had a default, check if it's allowed.
-                 // Else fallback to the first allowed method.
-                 let currentMethod = selectedMethods[group.sellerId] || group.paymentMethod || allowedMethods[0];
+                 // Else if the product had a default, check if it's available.
+                 // Else fallback to the first available method.
+                 let currentMethod = selectedMethods[group.sellerId] || group.paymentMethod || availablePaymentMethods[0]?.id || 'bank_transfer';
                  
-                 // Safety check: ensure currentMethod is actually allowed by the seller
-                 if (!allowedMethods.includes(currentMethod)) {
-                    currentMethod = allowedMethods[0];
+                 // Safety check: ensure currentMethod is actually available
+                 if (!availablePaymentMethods.find(pm => pm.id === currentMethod)) {
+                    currentMethod = availablePaymentMethods[0]?.id || 'bank_transfer';
                  }
 
                  const isBankTransfer = currentMethod === 'bank_transfer';
@@ -240,24 +297,28 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                         <h4 className="text-xl font-black uppercase tracking-tighter">Settlement: {group.storeName}</h4>
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Select Payment Method</p>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {availablePaymentMethods.map(m => {
-                            const isSelected = currentMethod === m.id;
-                            return (
-                              <button 
-                                key={m.id} 
-                                onClick={() => handleMethodChange(group.sellerId, m.id)}
-                                className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${isSelected ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'border-gray-100 dark:border-slate-700 hover:border-gray-300'}`}
-                              >
-                                <span className="text-xl">{m.icon}</span>
-                                <div>
-                                  <p className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>{m.name}</p>
-                                </div>
-                                {isSelected && <span className="ml-auto text-indigo-600 dark:text-indigo-400 font-bold text-lg">✓</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        {availablePaymentMethods.length === 0 ? (
+                            <p className="text-sm font-bold text-red-500">No supported payment methods for this delivery type.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {availablePaymentMethods.map(m => {
+                                const isSelected = currentMethod === m.id;
+                                return (
+                                  <button 
+                                    key={m.id} 
+                                    onClick={() => handleMethodChange(group.sellerId, m.id)}
+                                    className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${isSelected ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'border-gray-100 dark:border-slate-700 hover:border-gray-300'}`}
+                                  >
+                                    <span className="text-xl">{m.icon}</span>
+                                    <div>
+                                      <p className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>{m.name}</p>
+                                    </div>
+                                    {isSelected && <span className="ml-auto text-indigo-600 dark:text-indigo-400 font-bold text-lg">✓</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                        )}
                       </div>
 
                       {isBankTransfer ? (
@@ -266,7 +327,38 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                              {hasSellerBank ? "Direct Vendor Bank Details" : "Central Company Bank Details"}
                            </p>
                            <pre className="text-sm font-black dark:text-white whitespace-pre-wrap leading-relaxed">{displayBankDetails}</pre>
-                           <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the account above. Vendors will ship items once the transaction is verified."</p>
+                           <p className="text-[9px] text-gray-400 font-black leading-relaxed italic border-t dark:border-slate-700 pt-4">"Please initiate transfer to the account above. Vendors will sync order once the transaction is verified."</p>
+                           
+                           {/* Proof of Payment Section */}
+                           <div className="pt-4 border-t border-dashed dark:border-slate-700 space-y-4">
+                              <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Proof of Transfer Required</p>
+                              
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest pl-1">Sender Name / Reference</label>
+                                <input 
+                                  value={transferRefs[group.sellerId] || ''} 
+                                  onChange={(e) => setTransferRefs(prev => ({ ...prev, [group.sellerId]: e.target.value }))}
+                                  placeholder="Enter sender's full name"
+                                  className="w-full p-3 bg-white dark:bg-slate-900 rounded-xl outline-none font-bold border border-gray-200 dark:border-slate-700 focus:border-indigo-600 text-xs"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <label className="flex-1 cursor-pointer">
+                                    <div className="bg-white dark:bg-slate-900 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-indigo-500 transition-colors">
+                                        <span className="text-2xl">📎</span>
+                                        <span className="text-[9px] font-bold text-gray-500 uppercase">Upload Receipt</span>
+                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleProofUpload(group.sellerId, e.target.files[0])} />
+                                    </div>
+                                </label>
+                                {transferProofs[group.sellerId] && (
+                                    <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden border dark:border-slate-700 relative group/preview">
+                                        <img src={transferProofs[group.sellerId]} className="w-full h-full object-cover" alt="Proof" />
+                                        <button onClick={() => setTransferProofs(prev => { const n = {...prev}; delete n[group.sellerId]; return n; })} className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity font-bold text-xs">✕</button>
+                                    </div>
+                                )}
+                              </div>
+                           </div>
                         </div>
                       ) : isPOD ? (
                         <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-2">
@@ -294,6 +386,7 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 shadow-2xl sticky top-24">
             <h3 className="text-xl font-black uppercase tracking-tight mb-8">Summary Protocol</h3>
             <div className="space-y-4 text-sm font-bold text-gray-500 uppercase tracking-widest">
+               <div className="flex justify-between"><span>Delivery Type</span><span>{deliveryType.replace('_', ' ')}</span></div>
                <div className="flex justify-between"><span>Aggregated Value</span><span>₦{totalCartValue.toLocaleString()}</span></div>
                <div className="pt-4 border-t dark:border-slate-800 flex justify-between items-end">
                   <div>
@@ -307,8 +400,14 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                {checkoutStep === 'billing' && (
                  <button 
                    onClick={() => {
-                     if (!billing.fullName || !billing.address || !billing.phone) {
-                       alert("Please complete the essential delivery details.");
+                     // Check basics
+                     if (!billing.fullName || !billing.email || !billing.phone) {
+                       alert("Please complete the contact information (Name, Email, Phone).");
+                       return;
+                     }
+                     // Check address ONLY if home delivery
+                     if (deliveryType === 'home_delivery' && (!billing.address || !billing.city)) {
+                       alert("Delivery address is required for Home Delivery.");
                        return;
                      }
                      setCheckoutStep('payment');
@@ -318,7 +417,18 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                    Confirm Logistics
                  </button>
                )}
-               {checkoutStep === 'payment' && <button onClick={() => setCheckoutStep('syncing')} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Authorize Settlement</button>}
+               {checkoutStep === 'payment' && (
+                 <button 
+                    onClick={() => {
+                        if (validatePaymentStep()) {
+                            setCheckoutStep('syncing');
+                        }
+                    }} 
+                    className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl"
+                 >
+                    Authorize Settlement
+                 </button>
+               )}
             </div>
           </div>
         </div>
