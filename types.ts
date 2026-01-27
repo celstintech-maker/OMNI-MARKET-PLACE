@@ -111,6 +111,17 @@ export interface Review {
   verifiedPurchase: boolean;
 }
 
+export interface SellerRecommendation {
+  id: string;
+  sellerId: string;
+  buyerId: string;
+  buyerName: string;
+  storeName: string;
+  rating: number;
+  comment: string;
+  timestamp: number;
+}
+
 export interface Product {
   id: string;
   sellerId: string;

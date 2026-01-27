@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig, VisitorLog } from './types';
+import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig, VisitorLog, SellerRecommendation } from './types';
 import { CATEGORIES, MOCK_PRODUCTS, MOCK_STORES } from './constants';
 import { Layout } from './components/Layout';
 import { MarketplaceHome } from './views/MarketplaceHome';
@@ -115,6 +115,14 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [sellerRecommendations, setSellerRecommendations] = useState<SellerRecommendation[]>(() => {
+    try {
+      const saved = localStorage.getItem('omni_recommendations');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(() => {
     // Load config from local storage to persist API key
@@ -137,6 +145,7 @@ function App() {
   useEffect(() => { try { localStorage.setItem('omni_products', JSON.stringify(products)); } catch(e) { console.warn("Storage quota exceeded for products"); alert("Storage limit reached. Cannot save more data locally."); } }, [products]);
   useEffect(() => { try { localStorage.setItem('omni_stores', JSON.stringify(stores)); } catch(e) { console.warn("Storage quota exceeded for stores"); } }, [stores]);
   useEffect(() => { try { localStorage.setItem('omni_config', JSON.stringify(siteConfig)); } catch(e) { console.warn("Storage quota exceeded for config"); } }, [siteConfig]);
+  useEffect(() => { try { localStorage.setItem('omni_recommendations', JSON.stringify(sellerRecommendations)); } catch(e) { console.warn("Storage quota exceeded for recommendations"); } }, [sellerRecommendations]);
 
   // Session Restore ("Remember Login")
   useEffect(() => {
@@ -473,20 +482,30 @@ function App() {
           </div>
         )}
 
-        {currentView.startsWith('store/') && activeStore && (
-          <StorePage 
-            store={activeStore}
-            products={products}
-            reviews={reviews}
-            onNavigateToStore={(name) => handleNavigate(`store/${encodeURIComponent(name)}`)}
-            wishlist={wishlist}
-            onToggleWishlist={(pid) => setWishlist(prev => prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid])}
-            isLoggedIn={!!freshCurrentUser}
-            onAddToCart={handleAddToCart}
-            onFlagProduct={(pid) => {
-               setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
-            }}
-          />
+        {currentView.startsWith('store/') && (
+          activeStore ? (
+            <StorePage 
+              store={activeStore}
+              products={products}
+              reviews={reviews}
+              recommendations={sellerRecommendations}
+              onNavigateToStore={(name) => handleNavigate(`store/${encodeURIComponent(name)}`)}
+              wishlist={wishlist}
+              onToggleWishlist={(pid) => setWishlist(prev => prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid])}
+              isLoggedIn={!!freshCurrentUser}
+              onAddToCart={handleAddToCart}
+              onFlagProduct={(pid) => {
+                 setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
+              }}
+            />
+          ) : (
+            <div className="py-32 text-center bg-gray-50 dark:bg-slate-900 rounded-[3rem] animate-fade-in mx-4">
+               <div className="text-4xl mb-4">🏪</div>
+               <h3 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Store Protocol Failed</h3>
+               <p className="text-gray-500 font-bold text-xs mt-2 uppercase tracking-widest">Target node not found or suspended</p>
+               <button onClick={() => handleNavigate('home')} className="mt-8 bg-indigo-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition">Return to Grid</button>
+            </div>
+          )
         )}
 
         {currentView === 'cart' && (
@@ -533,7 +552,7 @@ function App() {
         {currentView === 'seller-dashboard' && freshCurrentUser && (
           <SellerDashboard 
             user={freshCurrentUser} products={products} adminConfig={siteConfig} disputes={disputes} categories={categories}
-            transactions={transactions} reviews={reviews}
+            transactions={transactions} reviews={reviews} recommendations={sellerRecommendations}
             onAddProduct={(p) => setProducts([...products, { ...p, id: `p-${Date.now()}` } as Product])}
             onDeleteProduct={(id) => setProducts(products.filter(p => p.id !== id))}
             onUpdateUser={handleUpdateUser}
@@ -546,7 +565,7 @@ function App() {
         {currentView === 'admin-dashboard' && freshCurrentUser?.role === UserRole.ADMIN && (
           <AdminDashboard 
             vendors={users} stores={stores} products={products} transactions={transactions} categories={categories}
-            siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs}
+            siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs} sellerRecommendations={sellerRecommendations}
             onUpdateConfig={setSiteConfig}
             onToggleVendorStatus={(id) => setUsers(users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u))}
             onDeleteVendor={(id) => { setUsers(users.filter(u => u.id !== id)); setStores(stores.filter(s => s.sellerId !== id)); }}
@@ -565,9 +584,11 @@ function App() {
              transactions={transactions.filter(t => t.buyerId === freshCurrentUser.id)}
              disputes={disputes}
              reviews={reviews}
+             recommendations={sellerRecommendations}
              onRaiseDispute={(d) => setDisputes([...disputes, d])}
              onAddReview={(r) => setReviews([...reviews, r])}
              onUpdateUser={handleUpdateUser}
+             onAddRecommendation={(rec) => setSellerRecommendations([...sellerRecommendations, rec])}
           />
         )}
 

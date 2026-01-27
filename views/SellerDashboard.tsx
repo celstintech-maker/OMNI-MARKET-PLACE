@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Product, User, Dispute, Transaction, AIConfig, BankDetails, Review, SiteConfig } from '../types';
+import { Product, User, Dispute, Transaction, AIConfig, BankDetails, Review, SiteConfig, SellerRecommendation } from '../types';
 import { Icons, CATEGORIES, PAYMENT_METHODS, COUNTRY_CURRENCY_MAP } from '../constants';
 
 interface SellerDashboardProps {
@@ -10,6 +11,7 @@ interface SellerDashboardProps {
   transactions: Transaction[];
   categories: string[];
   reviews: Review[];
+  recommendations?: SellerRecommendation[];
   onAddProduct: (product: Partial<Product>) => void;
   onDeleteProduct: (id: string) => void;
   onUpdateUser: (updatedUser: User) => void;
@@ -19,9 +21,9 @@ interface SellerDashboardProps {
 }
 
 export const SellerDashboard: React.FC<SellerDashboardProps> = ({ 
-  user, products, adminConfig, disputes, transactions, categories, reviews, onAddProduct, onDeleteProduct, onUpdateUser, onBatchAddProducts, onUpdateProduct, onUpdateTransaction
+  user, products, adminConfig, disputes, transactions, categories, reviews, recommendations = [], onAddProduct, onDeleteProduct, onUpdateUser, onBatchAddProducts, onUpdateProduct, onUpdateTransaction
 }) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'finance' | 'settings' | 'ai' | 'orders' | 'compliance' | 'analytics'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'finance' | 'settings' | 'ai' | 'orders' | 'compliance' | 'analytics' | 'reputation'>('inventory');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkCsvText, setBulkCsvText] = useState('');
@@ -85,6 +87,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const isVerified = user.verification?.verificationStatus === 'verified';
   const myProducts = products.filter(p => p.sellerId === user.id);
   const myTransactions = transactions.filter(t => t.sellerId === user.id);
+  const myRecommendations = recommendations.filter(r => r.sellerId === user.id);
 
   // --- ANALYTICS CALCULATIONS ---
   const grossSales = myTransactions.reduce((a,b) => a+b.amount,0);
@@ -126,63 +129,16 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     }
   }, [user.rentPaid, user.subscriptionExpiry]);
 
-  // Best Sellers
-  const topSelling = useMemo(() => {
-    const counts: Record<string, { count: number, name: string, revenue: number }> = {};
-    myTransactions.forEach(t => {
-      if (!counts[t.productId]) {
-        counts[t.productId] = { count: 0, name: t.productName, revenue: 0 };
-      }
-      counts[t.productId].count += 1;
-      counts[t.productId].revenue += t.amount;
-    });
-    return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
-  }, [myTransactions]);
-
-  // Comprehensive Analytics
-  const analyticsData = useMemo(() => {
-    // 1. Sales Trend (Group by Date) - Last 7 unique activity days or just chronological
-    const salesByTimestamp: Record<number, number> = {};
-    
-    myTransactions.forEach(t => {
-      const d = new Date(t.timestamp);
-      d.setHours(0,0,0,0);
-      const time = d.getTime();
-      salesByTimestamp[time] = (salesByTimestamp[time] || 0) + t.amount;
-    });
-
-    const trend = Object.keys(salesByTimestamp).map(ts => parseInt(ts)).sort((a,b) => a - b).map(ts => ({
-      date: new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      amount: salesByTimestamp[ts]
-    }));
-
-    // Normalize for chart (last 7 points or all if less)
-    const displayTrend = trend.slice(-10); 
-    const maxTrendValue = Math.max(...displayTrend.map(d => d.amount), 1);
-
-    // 2. Demographics (Group by City)
-    const locationCounts: Record<string, number> = {};
-    myTransactions.forEach(t => {
-      const loc = t.billingDetails.city?.trim() || 'Unknown';
-      locationCounts[loc] = (locationCounts[loc] || 0) + 1;
-    });
-    
-    const totalOrders = myTransactions.length;
-    const demographics = Object.entries(locationCounts)
-      .map(([name, count]) => ({ name, count, percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0 }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    return { displayTrend, maxTrendValue, demographics };
-  }, [myTransactions]);
-
   // Seller Rating Calculation
   const sellerRating = useMemo(() => {
+    // Combine product reviews and seller recommendations
     const sellerReviews = reviews.filter(r => myProducts.some(p => p.id === r.productId));
-    if (sellerReviews.length === 0) return 0;
-    const total = sellerReviews.reduce((acc, curr) => acc + curr.rating, 0);
-    return total / sellerReviews.length;
-  }, [reviews, myProducts]);
+    const allRatings = [...sellerReviews.map(r => r.rating), ...myRecommendations.map(r => r.rating)];
+    
+    if (allRatings.length === 0) return 0;
+    const total = allRatings.reduce((acc, curr) => acc + curr, 0);
+    return total / allRatings.length;
+  }, [reviews, myProducts, myRecommendations]);
 
   // Low Stock
   const lowStockThreshold = 5;
@@ -395,20 +351,28 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     const startIndex = lines[0].toLowerCase().includes('name') ? 1 : 0;
 
     for (let i = startIndex; i < lines.length; i++) {
-      const [name, price, stock, category] = lines[i].split(',').map(s => s.trim());
-      if (name && price) {
-        newProducts.push({
-          id: `bp-${Date.now()}-${i}`,
-          sellerId: user.id,
-          storeName: user.storeName || 'My Store',
-          name,
-          price: parseFloat(price) || 0,
-          stock: parseInt(stock) || 0,
-          category: category || 'Uncategorized',
-          description: `Bulk uploaded item: ${name}`,
-          imageUrl: 'https://picsum.photos/400/400', // Placeholder
-          currencySymbol: user.currencySymbol // Inherit currency
-        } as Product);
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const parts = line.split(',').map(s => s.trim());
+      if (parts.length >= 2) { 
+          const [name, price, stock, category] = parts;
+          const parsedPrice = parseFloat(price);
+          
+          if (name && !isNaN(parsedPrice)) {
+            newProducts.push({
+              id: `bp-${Date.now()}-${i}`,
+              sellerId: user.id,
+              storeName: user.storeName || 'My Store',
+              name: name.replace(/['"]+/g, ''), // Basic cleanup
+              price: parsedPrice,
+              stock: parseInt(stock) || 0,
+              category: category ? category.replace(/['"]+/g, '') : 'Uncategorized',
+              description: `Bulk uploaded item: ${name}`,
+              imageUrl: `https://picsum.photos/400/400?random=${Math.random()}`, // Randomize placeholder
+              currencySymbol: user.currencySymbol // Inherit currency
+            } as Product);
+          }
       }
     }
 
@@ -422,19 +386,37 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     }
   };
 
-  const generateReport = () => {
-    const headers = "Date,Order ID,Product,Amount,Status\n";
-    const rows = myTransactions.map(t => 
-      `${new Date(t.timestamp).toLocaleDateString()},${t.id},${t.productName},${t.amount},Completed`
-    ).join("\n");
-    
-    const blob = new Blob([headers + rows], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Sales_Report_${new Date().toISOString().slice(0,7)}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleGenerateMockProducts = () => {
+      if (!user.rentPaid) {
+          alert("Shop Rent must be paid and confirmed.");
+          return;
+      }
+      
+      const generated: Product[] = [];
+      const adjectives = ['Premium', 'Luxury', 'Essential', 'Modern', 'Vintage', 'Digital', 'Smart', 'Eco-Friendly'];
+      
+      for (let i = 0; i < 50; i++) {
+          const category = categories[Math.floor(Math.random() * categories.length)] || 'General';
+          const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+          
+          generated.push({
+              id: `gen-${Date.now()}-${i}`,
+              sellerId: user.id,
+              storeName: user.storeName || 'My Store',
+              name: `${adj} ${category} Item ${i + 1}`,
+              price: Math.floor(Math.random() * 50000) + 2000,
+              stock: Math.floor(Math.random() * 100) + 10,
+              category: category,
+              description: `Auto-generated high quality ${category.toLowerCase()} product. Features include durable materials and modern design.`,
+              imageUrl: `https://picsum.photos/400/400?random=${Date.now() + i}`,
+              currencySymbol: user.currencySymbol
+          });
+      }
+      
+      if (onBatchAddProducts) {
+          onBatchAddProducts(generated);
+          alert("50 Mock Products Generated & Added to Inventory.");
+      }
   };
 
   const toggleMonthlyReport = () => {
@@ -502,6 +484,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       { id: 'inventory', icon: '📦', label: 'Inventory' },
       { id: 'orders', icon: '🚚', label: 'Orders' },
       { id: 'analytics', icon: '📊', label: 'Analytics' },
+      { id: 'reputation', icon: '⭐', label: 'Reputation' },
       { id: 'finance', icon: '🏦', label: 'Finance' },
       { id: 'ai', icon: '🤖', label: 'AI Agent' },
       { id: 'compliance', icon: '⚖️', label: 'Compliance' },
@@ -724,7 +707,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            </div>
            
            {/* Tile Menu */}
-           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mt-6">
+           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mt-6">
              {menuItems.map(item => (
                <button 
                 key={item.id} 
@@ -741,6 +724,9 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
            </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto self-end">
+            <button onClick={handleGenerateMockProducts} className="hidden md:block bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 px-4 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-slate-700 transition disabled:opacity-50" disabled={!user.rentPaid} title="Dev Tool: Fill Store">
+               +50 Auto
+            </button>
             <button onClick={() => {
                 if (!user.rentPaid) { alert("Rent must be confirmed."); return; }
                 if (!user.verification?.profilePictureUrl) { alert("Upload profile picture/logo first."); setActiveTab('compliance'); return; }
@@ -761,7 +747,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl border border-red-100 dark:border-red-800">
                  <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                    <p className="text-red-600 dark:text-red-400 font-black text-xs uppercase tracking-widest">Critical Stock Filter Active</p>
+                    <p className="text-red-600 dark:text-red-400 font-black text-xs uppercase tracking-widest">Stock Alert: {lowStockProducts.length} Items Critical</p>
                  </div>
                  <button onClick={() => setFilterLowStock(false)} className="text-[10px] font-black uppercase text-gray-500 hover:text-indigo-600 underline">Clear Filter</button>
               </div>
@@ -800,7 +786,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Orders Management Section - (Keeping existing block) */}
+      {/* Orders Management Section */}
       {activeTab === 'orders' && (
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
            <div className="p-8 border-b border-gray-100 dark:border-slate-800">
@@ -909,8 +895,47 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Analytics, Finance, AI, Compliance, Settings Tabs - (Keeping existing blocks) */}
-      {/* ... */}
+      {/* Reputation Tab */}
+      {activeTab === 'reputation' && (
+          <div className="space-y-8 animate-slide-up">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800">
+                      <h3 className="text-xl font-black uppercase tracking-tighter mb-4 dark:text-white">Store Reputation</h3>
+                      <div className="flex items-end gap-2 mb-2">
+                          <span className="text-5xl font-black text-indigo-600 dark:text-indigo-400">{sellerRating.toFixed(1)}</span>
+                          <span className="text-gray-400 font-black mb-1">/ 5.0</span>
+                      </div>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Based on {myRecommendations.length} recommendations & product reviews</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800">
+                      <h3 className="text-xl font-black uppercase tracking-tighter mb-4 dark:text-white">Sentiment Analysis</h3>
+                      <p className="text-xs text-gray-500 font-medium">AI analysis of buyer feedback indicates a <span className="text-green-500 font-bold">Positive</span> trend in fulfillment speed and communication.</p>
+                  </div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm">
+                  <div className="p-8 border-b border-gray-100 dark:border-slate-800">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Buyer Recommendations</h3>
+                  </div>
+                  {myRecommendations.length === 0 ? (
+                      <div className="py-20 text-center text-gray-400 font-black uppercase text-[10px] tracking-widest">No recommendations yet</div>
+                  ) : (
+                      <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                          {myRecommendations.map(r => (
+                              <div key={r.id} className="p-8 hover:bg-gray-50 dark:hover:bg-slate-800/30 transition">
+                                  <div className="flex justify-between items-start mb-2">
+                                      <h4 className="font-black text-sm uppercase dark:text-white">{r.buyerName}</h4>
+                                      <span className="text-gray-400 text-[10px] font-mono">{new Date(r.timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                  <div className="text-yellow-400 text-sm mb-2">{'⭐'.repeat(r.rating)}</div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 italic">"{r.comment}"</p>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
       
       {activeTab === 'analytics' && (<div className="space-y-8 animate-slide-up"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Gross Revenue</p><p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">{user.currencySymbol}{grossSales.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Earnings</p><p className="text-3xl font-black text-green-600 dark:text-green-400 mt-2">{user.currencySymbol}{netEarnings.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Commission Paid</p><p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{user.currencySymbol}{totalCommission.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Orders Fulfilled</p><p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{myTransactions.length}</p></div></div></div>)}
       
@@ -1109,7 +1134,24 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {showBulkModal && (/* ... kept as is ... */ <div/>)}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl animate-fade-in">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-12 shadow-2xl relative border dark:border-slate-800 animate-slide-up">
+              <button onClick={() => setShowBulkModal(false)} className="absolute top-8 right-8 text-gray-400 hover:text-red-500">✕</button>
+              <h3 className="text-2xl font-black uppercase tracking-tighter mb-4 dark:text-white">Batch Inventory</h3>
+              <div className="space-y-6">
+                 <p className="text-xs text-gray-500 font-medium">Upload CSV data. Format: <br/><code className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">Name, Price, Stock, Category</code></p>
+                 <textarea 
+                    value={bulkCsvText}
+                    onChange={e => setBulkCsvText(e.target.value)}
+                    placeholder="Wireless Headphones, 25000, 50, Electronics&#10;Leather Wallet, 5000, 100, Fashion"
+                    className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl outline-none font-mono text-xs h-48 border border-gray-200 dark:border-slate-700"
+                 />
+                 <button onClick={handleBulkUpload} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-105 transition">Process Batch</button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
