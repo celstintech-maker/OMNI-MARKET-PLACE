@@ -233,6 +233,7 @@ export interface SiteConfig {
   paystackPublicKey?: string;
   flutterwavePublicKey?: string;
   stripePublicKey?: string;
+  geminiApiKey?: string; // New: Fallback API Key for AI features
   rentalPrice: number;
   commissionRate: number;
   taxEnabled: boolean;

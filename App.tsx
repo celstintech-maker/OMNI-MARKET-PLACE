@@ -39,6 +39,7 @@ const INITIAL_CONFIG: SiteConfig = {
   autoFlaggingEnabled: true,
   siteLocked: true, // Default to locked
   siteLockPassword: '6561', // Updated default for demo
+  geminiApiKey: '', // Initialize empty
   stats: {
     verifiedSellers: '152+',
     availableAssets: '852+',
@@ -515,6 +516,7 @@ function App() {
            }));
         }}
         theme={theme}
+        config={siteConfig}
       />
     </div>
   );

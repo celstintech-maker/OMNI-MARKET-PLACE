@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { User, Message, UserRole, Store } from '../types';
+import { User, Message, UserRole, Store, SiteConfig } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { Icons } from '../constants';
 
@@ -14,7 +13,8 @@ interface ChatSupportProps {
   isEmbedded?: boolean;
   forcedChannelId?: string;
   aiInstructions?: string[]; 
-  decayMinutes?: number; 
+  decayMinutes?: number;
+  config?: SiteConfig;
 }
 
 export const ChatSupport: React.FC<ChatSupportProps> = ({ 
@@ -27,7 +27,8 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   isEmbedded = false,
   forcedChannelId,
   aiInstructions = [],
-  decayMinutes = 0
+  decayMinutes = 0,
+  config
 }) => {
   const [isOpen, setIsOpen] = useState(isEmbedded);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(forcedChannelId || null);
@@ -85,15 +86,15 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   };
 
   const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
-    // The API key must be obtained exclusively from the environment variable process.env.API_KEY
-    const effectiveKey = process.env.API_KEY;
+    // Check Env Var first, then fallback to Site Config
+    const effectiveKey = process.env.API_KEY || config?.geminiApiKey;
     
     if (!effectiveKey) {
       onSendMessage?.(channelId, {
         id: `ai-err-${Date.now()}`,
         senderId: 'ai-agent',
         senderName: 'System',
-        text: "System Alert: AI Agent offline. API Key configuration missing on server.",
+        text: "System Alert: AI Agent offline. API Key configuration missing on server or admin settings.",
         timestamp: Date.now()
       });
       return;

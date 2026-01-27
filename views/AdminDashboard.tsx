@@ -56,9 +56,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const activeDisputes = disputes.filter(d => d.status === DisputeStatus.OPEN || d.status === DisputeStatus.ESCALATED || d.status === DisputeStatus.UNDER_REVIEW);
 
   const handleRunAI = async (mode: 'trend' | 'policy' | 'audit') => {
-    const apiKey = process.env.API_KEY;
+    // Check Env Var first, then fallback to Site Config
+    const apiKey = process.env.API_KEY || siteConfig.geminiApiKey;
+    
     if (!apiKey) {
-      setAiOutput("API Key missing. Please ensure 'API_KEY' is set in your Vercel Project Settings (Environment Variables) and redeploy.");
+      setAiOutput("API Key missing. Please set 'API_KEY' in Vercel or enter a Fallback Key in Admin Settings.");
       return;
     }
     setAiLoading(true);
@@ -621,6 +623,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <h3 className="text-2xl font-black uppercase tracking-tighter mb-8 dark:text-white">Security & System</h3>
               
               <div className="space-y-6">
+                 {/* New: API Key Fallback */}
+                 <div className="space-y-2 bg-indigo-50 dark:bg-indigo-900/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                     <div className="flex items-center justify-between">
+                         <label className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-widest">Google Gemini API Key (Fallback)</label>
+                         <span className="text-[9px] text-indigo-400 uppercase font-bold">Overrides Vercel Env if set</span>
+                     </div>
+                     <input 
+                         type="password"
+                         value={configForm.geminiApiKey || ''} 
+                         onChange={e => setConfigForm({...configForm, geminiApiKey: e.target.value})} 
+                         className="w-full p-4 bg-white dark:bg-slate-800 dark:text-white rounded-xl text-sm font-mono outline-none border border-indigo-200 dark:border-indigo-900" 
+                         placeholder="AIza..." 
+                     />
+                     <p className="text-[9px] text-gray-500">Paste your Gemini API key here if the Vercel deployment isn't picking it up.</p>
+                 </div>
+
                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
                     <div>
                        <p className="text-sm font-bold dark:text-white">Auto-Flagging AI</p>
