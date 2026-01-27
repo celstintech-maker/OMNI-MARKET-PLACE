@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig, VisitorLog } from './types';
 import { CATEGORIES, MOCK_PRODUCTS, MOCK_STORES } from './constants';
@@ -39,6 +40,8 @@ const INITIAL_CONFIG: SiteConfig = {
   autoFlaggingEnabled: true,
   siteLocked: true, // Default to locked
   siteLockPassword: '6561', // Updated default for demo
+  maintenanceModeTitle: 'Site Under Construction',
+  maintenanceModeMessage: 'Access is restricted to authorized personnel only.',
   geminiApiKey: '', // Initialize empty
   stats: {
     verifiedSellers: '152+',
@@ -71,6 +74,9 @@ function App() {
   const [lockPassword, setLockPassword] = useState('');
   const [currentView, setCurrentView] = useState<string>('home');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  
+  // Countdown state
+  const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
   
   // Load State from LocalStorage or Fallback to Initial Constants
   const [users, setUsers] = useState<User[]>(() => {
@@ -220,6 +226,29 @@ function App() {
     }
   }, [currentView, isSiteUnlocked, siteConfig.siteLocked]);
 
+  // Countdown Logic
+  useEffect(() => {
+    if (siteConfig.siteLocked && siteConfig.launchDate) {
+        const timer = setInterval(() => {
+            const now = Date.now();
+            const difference = siteConfig.launchDate! - now;
+
+            if (difference > 0) {
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((difference / 1000 / 60) % 60);
+                const seconds = Math.floor((difference / 1000) % 60);
+                setTimeLeft({ days, hours, minutes, seconds });
+            } else {
+                setTimeLeft(null);
+            }
+        }, 1000);
+        return () => clearInterval(timer);
+    } else {
+        setTimeLeft(null);
+    }
+  }, [siteConfig.siteLocked, siteConfig.launchDate]);
+
   const freshCurrentUser = useMemo(() => {
     return users.find(u => u.id === currentUser?.id) || currentUser;
   }, [users, currentUser]);
@@ -340,18 +369,47 @@ function App() {
   if (!isSiteUnlocked && siteConfig.siteLocked) {
     return (
       <div className={`min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 ${theme}`}>
-        <div className="max-w-md w-full space-y-8 text-center animate-slide-up">
-          <div className="w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(79,70,229,0.5)]">
+        <div className="max-w-2xl w-full space-y-8 text-center animate-slide-up">
+          <div className="w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(79,70,229,0.5)] animate-pulse">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           </div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter">Site Under Construction</h1>
-          <p className="text-gray-400 font-medium">Access is restricted to authorized personnel only.</p>
-          <div className="flex gap-2">
+          
+          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
+             {siteConfig.maintenanceModeTitle || "Site Under Construction"}
+          </h1>
+          
+          <p className="text-gray-400 font-medium text-lg max-w-lg mx-auto">
+             {siteConfig.maintenanceModeMessage || "Access is restricted to authorized personnel only."}
+          </p>
+
+          {/* COUNTDOWN TIMER */}
+          {timeLeft && (
+              <div className="grid grid-cols-4 gap-4 max-w-lg mx-auto py-8">
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
+                      <span className="block text-3xl sm:text-4xl font-black text-indigo-400">{timeLeft.days}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Days</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
+                      <span className="block text-3xl sm:text-4xl font-black text-indigo-400">{timeLeft.hours}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Hrs</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
+                      <span className="block text-3xl sm:text-4xl font-black text-indigo-400">{timeLeft.minutes}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Mins</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
+                      <span className="block text-3xl sm:text-4xl font-black text-indigo-400">{timeLeft.seconds}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Secs</span>
+                  </div>
+              </div>
+          )}
+          
+          <div className="flex gap-2 justify-center max-w-xs mx-auto">
             <input 
               type="password" 
               value={lockPassword}
               onChange={(e) => setLockPassword(e.target.value)}
-              placeholder="Enter Access Key"
+              placeholder="Admin Access Key"
               className="flex-1 p-4 bg-white/10 rounded-xl outline-none border border-white/10 focus:border-indigo-500 transition-colors text-center font-black tracking-widest placeholder:font-normal"
             />
             <button 

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User, Product, Transaction, UserRole, Dispute, DisputeStatus, Message, SiteConfig, VisitorLog } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -208,6 +209,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const reader = new FileReader();
     reader.onloadend = () => callback(reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  // Helper to convert timestamp to datetime-local string
+  const timestampToInputValue = (timestamp?: number) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const tzOffset = date.getTimezoneOffset() * 60000; // offset in milliseconds
+    const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
+    return localISOTime;
   };
 
   return (
@@ -641,8 +651,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
                     <div>
-                       <p className="text-sm font-bold dark:text-white">Maintenance Lock</p>
-                       <p className="text-[10px] text-gray-500">Restrict public access</p>
+                       <p className="text-sm font-bold dark:text-white">Maintenance Mode / Lock</p>
+                       <p className="text-[10px] text-gray-500">Restrict public access to site</p>
                     </div>
                     <button 
                        onClick={() => setConfigForm({...configForm, siteLocked: !configForm.siteLocked})}
@@ -653,9 +663,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                  </div>
                  
                  {configForm.siteLocked && (
-                    <div className="space-y-1 animate-slide-up">
-                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Lock Password</label>
-                       <input value={configForm.siteLockPassword || ''} onChange={e => setConfigForm({...configForm, siteLockPassword: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-sm font-bold outline-none" />
+                    <div className="space-y-4 animate-slide-up bg-gray-50 dark:bg-slate-800 p-6 rounded-2xl">
+                       <div className="space-y-1">
+                           <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Maintenance Title</label>
+                           <input 
+                             value={configForm.maintenanceModeTitle || ''} 
+                             onChange={e => setConfigForm({...configForm, maintenanceModeTitle: e.target.value})} 
+                             placeholder="e.g. LAUNCHING SOON"
+                             className="w-full p-4 bg-white dark:bg-slate-900 dark:text-white rounded-xl text-sm font-bold outline-none border border-gray-200 dark:border-slate-700" 
+                           />
+                       </div>
+                       <div className="space-y-1">
+                           <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Maintenance Message</label>
+                           <textarea 
+                             value={configForm.maintenanceModeMessage || ''} 
+                             onChange={e => setConfigForm({...configForm, maintenanceModeMessage: e.target.value})} 
+                             placeholder="e.g. We are going live in 7 days..."
+                             className="w-full p-4 bg-white dark:bg-slate-900 dark:text-white rounded-xl text-sm font-medium outline-none border border-gray-200 dark:border-slate-700 h-24" 
+                           />
+                       </div>
+                       <div className="space-y-1">
+                           <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Launch Countdown Target</label>
+                           <input 
+                             type="datetime-local" 
+                             value={timestampToInputValue(configForm.launchDate)}
+                             onChange={e => setConfigForm({...configForm, launchDate: e.target.value ? new Date(e.target.value).getTime() : undefined})} 
+                             className="w-full p-4 bg-white dark:bg-slate-900 dark:text-white rounded-xl text-sm font-bold outline-none border border-gray-200 dark:border-slate-700" 
+                           />
+                       </div>
+                       <div className="space-y-1 pt-4 border-t dark:border-slate-700">
+                           <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Admin Access Password</label>
+                           <input value={configForm.siteLockPassword || ''} onChange={e => setConfigForm({...configForm, siteLockPassword: e.target.value})} className="w-full p-4 bg-white dark:bg-slate-900 dark:text-white rounded-xl text-sm font-bold outline-none border border-gray-200 dark:border-slate-700" />
+                       </div>
                     </div>
                  )}
 

@@ -241,6 +241,10 @@ export interface SiteConfig {
   autoFlaggingEnabled: boolean;
   siteLocked: boolean;
   siteLockPassword?: string;
+  // Maintenance Mode Config
+  maintenanceModeTitle?: string;
+  maintenanceModeMessage?: string;
+  launchDate?: number; // Timestamp for countdown
   stats: {
     verifiedSellers: string;
     availableAssets: string;
