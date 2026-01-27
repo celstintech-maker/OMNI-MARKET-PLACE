@@ -74,20 +74,35 @@ function App() {
   
   // Load State from LocalStorage or Fallback to Initial Constants
   const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('omni_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    try {
+      const saved = localStorage.getItem('omni_users');
+      return saved ? JSON.parse(saved) : INITIAL_USERS;
+    } catch (e) {
+      console.error("Failed to load users", e);
+      return INITIAL_USERS;
+    }
   });
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('omni_products');
-    return saved ? JSON.parse(saved) : MOCK_PRODUCTS;
+    try {
+      const saved = localStorage.getItem('omni_products');
+      return saved ? JSON.parse(saved) : MOCK_PRODUCTS;
+    } catch (e) {
+      console.error("Failed to load products", e);
+      return MOCK_PRODUCTS;
+    }
   });
 
   const [stores, setStores] = useState<Store[]>(() => {
-    const saved = localStorage.getItem('omni_stores');
-    return saved ? JSON.parse(saved) : MOCK_STORES;
+    try {
+      const saved = localStorage.getItem('omni_stores');
+      return saved ? JSON.parse(saved) : MOCK_STORES;
+    } catch (e) {
+      console.error("Failed to load stores", e);
+      return MOCK_STORES;
+    }
   });
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -97,21 +112,25 @@ function App() {
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(() => {
     // Load config from local storage to persist API key
-    const savedConfig = localStorage.getItem('omni_config');
-    const parsed = savedConfig ? JSON.parse(savedConfig) : INITIAL_CONFIG;
-    // Ensure stats exist if loading from old config
-    return { ...INITIAL_CONFIG, ...parsed, stats: parsed.stats || INITIAL_CONFIG.stats };
+    try {
+      const savedConfig = localStorage.getItem('omni_config');
+      const parsed = savedConfig ? JSON.parse(savedConfig) : INITIAL_CONFIG;
+      // Ensure stats exist if loading from old config
+      return { ...INITIAL_CONFIG, ...parsed, stats: parsed.stats || INITIAL_CONFIG.stats };
+    } catch (e) {
+      return INITIAL_CONFIG;
+    }
   });
   const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
   
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
 
-  // Persistence Effects
-  useEffect(() => { localStorage.setItem('omni_users', JSON.stringify(users)); }, [users]);
-  useEffect(() => { localStorage.setItem('omni_products', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('omni_stores', JSON.stringify(stores)); }, [stores]);
-  useEffect(() => { localStorage.setItem('omni_config', JSON.stringify(siteConfig)); }, [siteConfig]);
+  // Persistence Effects with Try-Catch to prevent Blank Page on Quota Exceeded
+  useEffect(() => { try { localStorage.setItem('omni_users', JSON.stringify(users)); } catch(e) { console.warn("Storage quota exceeded for users"); } }, [users]);
+  useEffect(() => { try { localStorage.setItem('omni_products', JSON.stringify(products)); } catch(e) { console.warn("Storage quota exceeded for products"); alert("Storage limit reached. Cannot save more data locally."); } }, [products]);
+  useEffect(() => { try { localStorage.setItem('omni_stores', JSON.stringify(stores)); } catch(e) { console.warn("Storage quota exceeded for stores"); } }, [stores]);
+  useEffect(() => { try { localStorage.setItem('omni_config', JSON.stringify(siteConfig)); } catch(e) { console.warn("Storage quota exceeded for config"); } }, [siteConfig]);
 
   // Session Restore ("Remember Login")
   useEffect(() => {

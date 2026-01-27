@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, (process as any).cwd(), '');
   
   // Prioritize system environment variables (Vercel) -> .env files
   const apiKey = process.env.API_KEY || env.API_KEY || 

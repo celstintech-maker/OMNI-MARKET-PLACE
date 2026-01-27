@@ -86,9 +86,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   };
 
   const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
-    // Check Env Var first, then fallback to Site Config
-    const rawKey = process.env.API_KEY || config?.geminiApiKey;
-    const effectiveKey = rawKey ? rawKey.trim() : '';
+    const effectiveKey = process.env.API_KEY;
     
     if (!effectiveKey) {
       onSendMessage?.(channelId, {

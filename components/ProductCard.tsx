@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Product, CartItem } from '../types';
 import { Icons, PAYMENT_METHODS } from '../constants';
 
@@ -21,26 +20,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart
 }) => {
   const [showModal, setShowModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(product.imageUrl);
+  
+  // Gallery state
+  const gallery = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.imageUrl];
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | undefined>(product.sizes?.[0]);
   const [quantity, setQuantity] = useState(1);
-  const [showVideo, setShowVideo] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const currency = product.currencySymbol || '₦';
-  const payMethod = PAYMENT_METHODS.find(m => m.id === product.paymentMethod);
-  const gallery = product.gallery || [product.imageUrl];
+  
+  const hasVideo = !!product.videoUrl;
 
-  const handleQuantityChange = (val: string) => {
-    const num = parseInt(val);
-    if (isNaN(num) || num < 1) {
-      setQuantity(1);
-    } else if (num > product.stock) {
-      setQuantity(product.stock);
-    } else {
-      setQuantity(num);
-    }
+  // Auto-slide logic for gallery if no video is playing/interacting? 
+  // Let's keep it manual for now to avoid complexity with video
+  
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % gallery.length);
+  };
+
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
   };
 
   const handleAddToCart = () => {
@@ -51,22 +53,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onAddToCart?.({
       ...product,
       selectedSize,
-      selectedImageUrl: selectedImage,
+      selectedImageUrl: gallery[currentImageIndex],
       quantity: quantity
     });
     setShowModal(false);
     setQuantity(1);
-  };
-
-  const toggleVideoPlayback = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
   };
 
   return (
@@ -114,7 +105,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {showModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-5xl h-fit max-h-[90vh] rounded-[3rem] overflow-hidden shadow-2xl relative flex flex-col md:flex-row animate-slide-up">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-fit max-h-[90vh] rounded-[3rem] overflow-hidden shadow-2xl relative flex flex-col md:flex-row animate-slide-up">
             <button 
               onClick={() => { setShowModal(false); setQuantity(1); }}
               className="absolute top-6 right-6 z-50 p-2 bg-white/10 hover:bg-white/20 dark:bg-slate-800/50 rounded-full text-white md:text-gray-400 transition"
@@ -122,50 +113,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
 
-            <div className="md:w-1/2 relative bg-gray-100 dark:bg-slate-800 h-64 md:h-auto overflow-hidden">
-               {showVideo && product.videoUrl ? (
-                 <div className="relative w-full h-full group">
-                   <video 
-                     ref={videoRef}
-                     src={product.videoUrl} 
-                     className="w-full h-full object-cover" 
-                     playsInline
-                     loop
-                   />
-                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-                     <button onClick={toggleVideoPlayback} className="bg-white/20 backdrop-blur-xl p-6 rounded-full text-white hover:scale-110 transition">
-                       {isPlaying ? (
-                         <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-                       ) : (
-                         <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                       )}
-                     </button>
-                   </div>
-                   <button onClick={() => setShowVideo(false)} className="absolute bottom-6 right-6 bg-slate-950/80 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest">Back to Photo</button>
-                 </div>
-               ) : (
-                 <>
-                   <img src={selectedImage} className="w-full h-full object-cover" alt="" />
-                   {product.videoUrl && (
-                     <button onClick={() => setShowVideo(true)} className="absolute bottom-6 right-6 bg-indigo-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl animate-pulse">
-                        <Icons.Camera /> Verification Feed
-                     </button>
+            {/* MEDIA SECTION */}
+            <div className={`md:w-1/2 relative bg-gray-100 dark:bg-slate-800 flex flex-col md:flex-row ${hasVideo ? 'gap-1' : ''}`}>
+               {/* IMAGE SLIDER */}
+               <div className={`relative ${hasVideo ? 'md:w-3/5 h-64 md:h-auto' : 'w-full h-64 md:h-auto'} overflow-hidden group`}>
+                   <img src={gallery[currentImageIndex]} className="w-full h-full object-cover" alt="" />
+                   
+                   {/* Arrows */}
+                   {gallery.length > 1 && (
+                     <>
+                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                     </>
                    )}
-                 </>
-               )}
-               <div className="absolute bottom-6 left-6 flex gap-2">
-                 {gallery.map((img, i) => (
-                   <button 
-                    key={i} 
-                    onClick={() => { setSelectedImage(img); setShowVideo(false); }}
-                    className={`w-12 h-12 rounded-xl border-2 transition-all ${selectedImage === img ? 'border-white' : 'border-transparent opacity-60'}`}
-                   >
-                     <img src={img} className="w-full h-full object-cover rounded-lg" alt="" />
-                   </button>
-                 ))}
+
+                   {/* Dots */}
+                   {gallery.length > 1 && (
+                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                        {gallery.map((_, i) => (
+                            <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'}`} />
+                        ))}
+                     </div>
+                   )}
                </div>
+
+               {/* VIDEO SECTION (Side by side if present) */}
+               {hasVideo && (
+                 <div className="md:w-2/5 h-48 md:h-auto bg-black border-l border-white/10 relative group">
+                    <video 
+                        ref={videoRef}
+                        src={product.videoUrl} 
+                        className="w-full h-full object-cover" 
+                        controls
+                        playsInline
+                    />
+                    <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest pointer-events-none opacity-80">
+                        Live Feed
+                    </div>
+                 </div>
+               )}
             </div>
 
+            {/* DETAILS SECTION */}
             <div className="md:w-1/2 p-8 sm:p-12 overflow-y-auto no-scrollbar bg-white dark:bg-slate-900">
                <div className="space-y-8">
                   <div className="space-y-2">
@@ -182,6 +175,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     <div>
                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Unit Valuation</p>
                       <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{currency}{product.price.toLocaleString()}</p>
+                    </div>
+                    <div className="flex items-center gap-4 justify-end">
+                       <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center font-black">-</button>
+                       <span className="text-xl font-black w-8 text-center">{quantity}</span>
+                       <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center font-black">+</button>
                     </div>
                   </div>
 

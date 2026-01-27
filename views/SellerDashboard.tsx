@@ -75,10 +75,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     price: '',
     stock: '',
     category: categories[0] || 'Uncategorized',
-    imageUrl: '',
+    imageUrl: '',   // Image 1
+    gallery2: '',   // Image 2
+    gallery3: '',   // Image 3
     description: '',
-    gallery1: '',
-    gallery2: '',
     videoUrl: ''
   });
 
@@ -202,6 +202,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleIdentitySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 1024 * 1024) { // 1MB Limit
+        alert("File too large. Please use a smaller image (<1MB) for demo purposes.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => setDocPreview(reader.result as string);
       reader.readAsDataURL(file);
@@ -211,6 +215,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleProfilePicSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 1024 * 1024) { // 1MB Limit
+        alert("File too large. Please use a smaller image (<1MB) for demo purposes.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => setProfilePicPreview(reader.result as string);
       reader.readAsDataURL(file);
@@ -219,6 +227,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const handleFileSelect = (field: keyof typeof newListing, file: File | null) => {
     if (file) {
+      if (file.size > 500 * 1024) { // 500KB Limit to be extremely safe with localStorage
+        alert("Image too large. Please use an image under 500KB to prevent storage errors.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewListing(prev => ({ ...prev, [field]: reader.result as string }));
@@ -244,6 +256,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleRentProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+        if (file.size > 1024 * 1024) {
+            alert("File too large. Max 1MB.");
+            return;
+        }
         const reader = new FileReader();
         reader.onloadend = () => setRentProofDraft(reader.result as string);
         reader.readAsDataURL(file);
@@ -301,6 +317,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+        if (file.size > 1024 * 1024) {
+            alert("File too large. Max 1MB.");
+            return;
+        }
         const reader = new FileReader();
         reader.onloadend = () => setExtensionProof(reader.result as string);
         reader.readAsDataURL(file);
@@ -432,10 +452,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         price: (product.price !== undefined && product.price !== null) ? product.price.toString() : '0',
         stock: (product.stock !== undefined && product.stock !== null) ? product.stock.toString() : '0',
         category: product.category,
-        imageUrl: product.imageUrl,
-        description: product.description,
-        gallery1: product.gallery?.[0] || '',
+        imageUrl: product.imageUrl || product.gallery?.[0] || '',
         gallery2: product.gallery?.[1] || '',
+        gallery3: product.gallery?.[2] || '',
+        description: product.description,
         videoUrl: product.videoUrl || ''
     });
     setEditingProductId(product.id);
@@ -459,9 +479,9 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         stock: '',
         category: categories[0] || 'Uncategorized',
         imageUrl: '',
-        description: '',
-        gallery1: '',
         gallery2: '',
+        gallery3: '',
+        description: '',
         videoUrl: ''
     });
     setEditingProductId(null);
@@ -503,7 +523,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Verification Warning - Classic CSS */}
+      {/* ... (Verification Warning, Notifications, Rental Fee Logic - Keeping existing blocks) ... */}
       {!user.verification?.govDocumentUrl && (
         <div className="bg-[#fef9c3] dark:bg-yellow-900/30 border-4 border-double border-[#854d0e] dark:border-yellow-600 text-[#854d0e] dark:text-yellow-500 p-6 text-center font-serif shadow-xl animate-bounce rounded-2xl">
            <h3 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-[#854d0e] dark:border-yellow-600 inline-block mb-2 px-4">Notice of Compliance</h3>
@@ -514,7 +534,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Notifications Area */}
       {user.notifications && user.notifications.length > 0 && (
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/50">
            <div className="flex justify-between items-center mb-2">
@@ -529,7 +548,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Rental Fee Logic */}
       {!user.rentPaid ? (
         <div className="bg-slate-900 dark:bg-slate-950 text-white p-8 rounded-[2.5rem] shadow-2xl border-4 border-indigo-600 animate-slide-up">
            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
@@ -610,7 +628,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Extension Payment Modal */}
+      {/* Extension Payment Modal - (Keeping existing block) ... */}
       {showExtensionModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl animate-fade-in">
             <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 sm:p-10 shadow-2xl relative border dark:border-slate-800 animate-slide-up">
@@ -665,11 +683,11 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
+      {/* Main Header / Store Overview */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-gray-200 dark:border-slate-800 pb-6 gap-6">
         <div>
            <div className="flex items-center gap-4 mb-2">
              <h2 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-none dark:text-white">{user.storeName || 'Merchant'} Store</h2>
-             {/* Seller Rating Display */}
              {sellerRating > 0 && (
                 <div className="bg-yellow-100 dark:bg-yellow-900/30 px-3 py-1 rounded-full flex items-center gap-1">
                    <span className="text-lg">⭐</span>
@@ -738,6 +756,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
       {activeTab === 'inventory' && (
         <div className="space-y-4 animate-slide-up">
+           {/* ... Inventory logic ... */}
            {filterLowStock && (
               <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl border border-red-100 dark:border-red-800">
                  <div className="flex items-center gap-2">
@@ -781,7 +800,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Orders Management Section */}
+      {/* Orders Management Section - (Keeping existing block) */}
       {activeTab === 'orders' && (
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
            <div className="p-8 border-b border-gray-100 dark:border-slate-800">
@@ -890,33 +909,11 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       )}
 
-      {/* Analytics, Finance, AI, Compliance, Settings Tabs - Included implicitly by structure or existing in previous */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-8 animate-slide-up">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-             {/* Summary Cards */}
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800">
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Gross Revenue</p>
-                <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">{user.currencySymbol}{grossSales.toLocaleString()}</p>
-             </div>
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800">
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Earnings</p>
-                <p className="text-3xl font-black text-green-600 dark:text-green-400 mt-2">{user.currencySymbol}{netEarnings.toLocaleString()}</p>
-             </div>
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800">
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Commission Paid</p>
-                <p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{user.currencySymbol}{totalCommission.toLocaleString()}</p>
-             </div>
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800">
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Orders Fulfilled</p>
-                <p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{myTransactions.length}</p>
-             </div>
-          </div>
-          {/* ... Rest of analytics ... */}
-        </div>
-      )}
-
-      {/* Compliance Tab - Important for image upload */}
+      {/* Analytics, Finance, AI, Compliance, Settings Tabs - (Keeping existing blocks) */}
+      {/* ... */}
+      
+      {activeTab === 'analytics' && (<div className="space-y-8 animate-slide-up"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Gross Revenue</p><p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">{user.currencySymbol}{grossSales.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Earnings</p><p className="text-3xl font-black text-green-600 dark:text-green-400 mt-2">{user.currencySymbol}{netEarnings.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Commission Paid</p><p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{user.currencySymbol}{totalCommission.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Orders Fulfilled</p><p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{myTransactions.length}</p></div></div></div>)}
+      
       {activeTab === 'compliance' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
            <div className="space-y-8">
@@ -981,9 +978,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       {activeTab === 'settings' && (<div className="max-w-3xl mx-auto space-y-8 animate-slide-up"><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6"><h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">General Configuration</h3><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Store Name</label><div className="flex gap-2"><input value={storeNameDraft} onChange={e => setStoreNameDraft(e.target.value)} className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none" /><button onClick={handleUpdateStore} className="px-6 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase">Save</button></div></div><div className="grid grid-cols-2 gap-4"><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Operating Region</label><select value={user.country || 'Nigeria'} onChange={e => handleCountryChange(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none cursor-pointer">{Object.keys(COUNTRY_CURRENCY_MAP).map(c => <option key={c} value={c}>{c}</option>)}</select></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Currency</label><div className="w-full p-4 bg-gray-100 dark:bg-slate-700 rounded-xl text-xs font-bold text-gray-500 cursor-not-allowed">{user.currency} ({user.currencySymbol})</div></div></div></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6"><h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">Payment Methods</h3><p className="text-xs text-gray-500">Enable methods you want to offer to buyers.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{PAYMENT_METHODS.map(m => (<button key={m.id} onClick={() => handleTogglePaymentMethod(m.id)} className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${user.enabledPaymentMethods?.includes(m.id) ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-100 dark:border-slate-700 opacity-60'}`}><div className="flex items-center gap-3"><span className="text-xl">{m.icon}</span><span className="text-[10px] font-black uppercase tracking-widest dark:text-white">{m.name}</span></div>{user.enabledPaymentMethods?.includes(m.id) && <span className="text-indigo-600 font-bold">✓</span>}</button>))}</div></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 flex justify-between items-center"><div><h3 className="text-sm font-black uppercase tracking-widest dark:text-white">Monthly Analytics Report</h3><p className="text-xs text-gray-500 mt-1">Receive PDF summaries via email.</p></div><button onClick={toggleMonthlyReport} className={`w-12 h-6 rounded-full p-1 transition-colors ${user.monthlyReportSubscribed ? 'bg-green-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${user.monthlyReportSubscribed ? 'translate-x-6' : ''}`}></div></button></div></div>)}
       {activeTab === 'ai' && (<div className="max-w-2xl mx-auto space-y-8 animate-slide-up"><div className="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl text-center"><div className="text-4xl mb-4">🤖</div><h3 className="text-2xl font-black uppercase tracking-tighter">Your AI Agent</h3><p className="text-indigo-200 text-xs font-medium max-w-sm mx-auto mt-2">Customize how your automated support agent interacts with customers visiting your store.</p></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Auto-Reply Status</span><button onClick={() => handleUpdateAI({ autoReplyEnabled: !user.aiConfig?.autoReplyEnabled })} className={`w-12 h-6 rounded-full p-1 transition-colors ${user.aiConfig?.autoReplyEnabled ? 'bg-green-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${user.aiConfig?.autoReplyEnabled ? 'translate-x-6' : ''}`}></div></button></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Greeting Message</label><input value={user.aiConfig?.greeting || ''} onChange={e => handleUpdateAI({ greeting: e.target.value })} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition" placeholder="Welcome to our store! How can I help?" /></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Agent Tone</label><div className="grid grid-cols-2 gap-3">{['professional', 'friendly', 'enthusiastic', 'minimalist'].map(t => (<button key={t} onClick={() => handleUpdateAI({ tone: t as any })} className={`p-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition ${user.aiConfig?.tone === t ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' : 'border-gray-100 dark:border-slate-800 text-gray-400'}`}>{t}</button>))}</div></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Special Instructions</label><textarea value={user.aiConfig?.specialInstructions || ''} onChange={e => handleUpdateAI({ specialInstructions: e.target.value })} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-medium h-32 outline-none border-2 border-transparent focus:border-indigo-600 transition" placeholder="e.g. Always mention we offer free shipping on orders over $50. Be polite but brief." /></div></div></div>)}
 
-      {/* Add/Edit Modal (Previous Implementation) */}
-      {showAddModal && (/* ... kept as is ... */ <div/>)}
-      {/* ... render edit modal content (re-pasting content for context if needed, but assuming structure holds) ... */}
+      {/* Add/Edit Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] p-12 shadow-2xl relative animate-slide-up max-h-[90vh] overflow-y-auto no-scrollbar border dark:border-slate-800">
@@ -1017,13 +1012,50 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                     <textarea placeholder="Product Description..." className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl font-medium border border-gray-200 dark:border-slate-700 outline-none h-24 text-xs" value={newListing.description} onChange={e => setNewListing({...newListing, description: e.target.value})} />
                  </div>
                  
-                 {/* Image Upload Simplified */}
-                 <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1 mb-2 block">Primary Image</label>
-                    <input type="file" accept="image/*" onChange={(e) => handleFileSelect('imageUrl', e.target.files?.[0] || null)} className="block w-full text-[10px] text-gray-500 dark:text-gray-400 mb-2" />
-                    {newListing.imageUrl && (
-                        <img src={newListing.imageUrl} alt="Preview" className="h-20 rounded-lg object-cover" />
-                    )}
+                 {/* Image Upload - Main + 2 Gallery Slots */}
+                 <div className="bg-gray-50 dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 space-y-4">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1 block">Product Gallery (Max 3)</label>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                        {/* Image 1 (Main) */}
+                        <div className="space-y-2">
+                            <div className="relative aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center">
+                                {newListing.imageUrl ? (
+                                    <img src={newListing.imageUrl} alt="Main" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-2xl text-gray-300">1</span>
+                                )}
+                                <input type="file" accept="image/*" onChange={(e) => handleFileSelect('imageUrl', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                            <p className="text-[9px] font-bold text-center text-gray-400">Main Image</p>
+                        </div>
+
+                        {/* Image 2 */}
+                        <div className="space-y-2">
+                            <div className="relative aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center">
+                                {newListing.gallery2 ? (
+                                    <img src={newListing.gallery2} alt="Gallery 2" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-2xl text-gray-300">2</span>
+                                )}
+                                <input type="file" accept="image/*" onChange={(e) => handleFileSelect('gallery2', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                            <p className="text-[9px] font-bold text-center text-gray-400">Gallery 2</p>
+                        </div>
+
+                        {/* Image 3 */}
+                        <div className="space-y-2">
+                            <div className="relative aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center">
+                                {newListing.gallery3 ? (
+                                    <img src={newListing.gallery3} alt="Gallery 3" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-2xl text-gray-300">3</span>
+                                )}
+                                <input type="file" accept="image/*" onChange={(e) => handleFileSelect('gallery3', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                            <p className="text-[9px] font-bold text-center text-gray-400">Gallery 3</p>
+                        </div>
+                    </div>
                  </div>
 
                  {/* Video Upload Simplified */}
@@ -1036,15 +1068,17 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                  </div>
 
                  <button onClick={() => { 
-                    const gallery = [newListing.imageUrl];
+                    // Construct gallery array from the 3 potential images
+                    const gallery = [newListing.imageUrl, newListing.gallery2, newListing.gallery3].filter(Boolean);
+                    
                     const productData = {
                       name: newListing.name,
                       price: parseFloat(newListing.price) || 0,
                       stock: parseInt(newListing.stock) || 0,
                       category: newListing.category,
-                      imageUrl: newListing.imageUrl,
+                      imageUrl: newListing.imageUrl, // Main image
                       description: newListing.description,
-                      gallery,
+                      gallery, // Updated gallery
                       videoUrl: newListing.videoUrl,
                       currencySymbol: user.currencySymbol // Ensure product inherits currency
                     };
@@ -1056,6 +1090,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                             alert("Product Updated Successfully");
                         }
                     } else {
+                        if (!productData.imageUrl) {
+                            alert("Main Image is required.");
+                            return;
+                        }
                         onAddProduct({
                           ...productData,
                           sellerId: user.id, 
