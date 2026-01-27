@@ -32,6 +32,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [aiOutput, setAiOutput] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
   const [viewingProof, setViewingProof] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
   
   // Staff Creation State
   const [newStaff, setNewStaff] = useState({ name: '', email: '', pin: '1234', role: UserRole.STAFF as UserRole });
@@ -57,7 +58,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleRunAI = async (mode: 'trend' | 'policy' | 'audit') => {
     // Check Env Var first, then fallback to Site Config
-    const apiKey = process.env.API_KEY || siteConfig.geminiApiKey;
+    // Trim whitespace to prevent copy-paste errors
+    const rawKey = process.env.API_KEY || siteConfig.geminiApiKey;
+    const apiKey = rawKey ? rawKey.trim() : '';
     
     if (!apiKey) {
       setAiOutput("API Key missing. Please set 'API_KEY' in Vercel or enter a Fallback Key in Admin Settings.");
@@ -76,8 +79,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         contents: prompt
       });
       setAiOutput(response.text || "No data received.");
-    } catch (e) {
-      setAiOutput("AI Connection Failed. Check API Key validity.");
+    } catch (e: any) {
+      console.error("AI Error Full:", e);
+      // Display the actual error message to help the user debug
+      const errorMessage = e.message || e.toString();
+      setAiOutput(`AI Connection Failed.\n\nError Details:\n${errorMessage}\n\nTroubleshooting:\n1. Check if the API Key has spaces.\n2. Verify the key is active in Google AI Studio.\n3. Ensure your key supports 'gemini-3-flash-preview'.`);
     } finally {
       setAiLoading(false);
     }
@@ -627,16 +633,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                  <div className="space-y-2 bg-indigo-50 dark:bg-indigo-900/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
                      <div className="flex items-center justify-between">
                          <label className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-widest">Google Gemini API Key (Fallback)</label>
-                         <span className="text-[9px] text-indigo-400 uppercase font-bold">Overrides Vercel Env if set</span>
+                         <div className="flex items-center gap-2">
+                            <button onClick={() => setShowApiKey(!showApiKey)} className="text-[9px] font-black uppercase text-indigo-400 hover:text-indigo-600">
+                                {showApiKey ? 'Hide' : 'Show'}
+                            </button>
+                            <span className="text-[9px] text-indigo-400 uppercase font-bold">Overrides Vercel Env if set</span>
+                         </div>
                      </div>
                      <input 
-                         type="password"
+                         type={showApiKey ? "text" : "password"}
                          value={configForm.geminiApiKey || ''} 
                          onChange={e => setConfigForm({...configForm, geminiApiKey: e.target.value})} 
                          className="w-full p-4 bg-white dark:bg-slate-800 dark:text-white rounded-xl text-sm font-mono outline-none border border-indigo-200 dark:border-indigo-900" 
                          placeholder="AIza..." 
                      />
-                     <p className="text-[9px] text-gray-500">Paste your Gemini API key here if the Vercel deployment isn't picking it up.</p>
+                     <p className="text-[9px] text-gray-500">Paste your Gemini API key here if the Vercel deployment isn't picking it up. Ensure no leading/trailing spaces.</p>
                  </div>
 
                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">

@@ -87,7 +87,8 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
 
   const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
     // Check Env Var first, then fallback to Site Config
-    const effectiveKey = process.env.API_KEY || config?.geminiApiKey;
+    const rawKey = process.env.API_KEY || config?.geminiApiKey;
+    const effectiveKey = rawKey ? rawKey.trim() : '';
     
     if (!effectiveKey) {
       onSendMessage?.(channelId, {
@@ -142,13 +143,14 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
       });
 
       updateActivity();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const errorMsg = error.message || error.toString();
       onSendMessage?.(channelId, {
         id: `ai-err-${Date.now()}`,
         senderId: 'ai-agent',
         senderName: 'System',
-        text: "Agent connection interrupted. Please try again.",
+        text: `Agent Error: ${errorMsg}. Check Admin Settings.`,
         timestamp: Date.now()
       });
     } finally {
