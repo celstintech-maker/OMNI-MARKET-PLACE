@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, Transaction, Dispute, DisputeStatus, Review } from '../types';
 
@@ -9,9 +8,10 @@ interface BuyerDashboardProps {
   reviews: Review[];
   onRaiseDispute: (dispute: Dispute) => void;
   onAddReview: (review: Review) => void;
+  onUpdateUser: (user: User) => void;
 }
 
-export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactions, disputes, reviews, onRaiseDispute, onAddReview }) => {
+export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactions, disputes, reviews, onRaiseDispute, onAddReview, onUpdateUser }) => {
   const [activeDisputeTid, setActiveDisputeTid] = useState<string | null>(null);
   const [activeReviewTid, setActiveReviewTid] = useState<string | null>(null);
   const [disputeReason, setDisputeReason] = useState<any>('other');
@@ -60,6 +60,20 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
     alert("Review Submitted. Thank you.");
   };
 
+  const handleProfileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onUpdateUser({
+          ...user,
+          profilePicture: reader.result as string
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="space-y-12 animate-fade-in pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -71,39 +85,56 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
-            <div className="p-8 border-b border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div className="p-8 border-b border-gray-100 dark:border-slate-800">
                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Transaction History</h3>
             </div>
             {transactions.length === 0 ? (
               <div className="py-20 text-center text-gray-400 font-black uppercase text-[10px] tracking-widest">No transaction packets synced</div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-slate-800">
                 {transactions.map(t => {
                   const activeDispute = disputes.find(d => d.transactionId === t.id);
                   const hasReviewed = reviews.some(r => r.productId === t.productId && r.buyerId === user.id);
-                  
+                  const status = t.status || 'pending';
+
                   return (
-                    <div key={t.id} className="p-8 space-y-4 hover:bg-gray-50 transition">
+                    <div key={t.id} className="p-8 space-y-4 hover:bg-gray-50 dark:hover:bg-slate-800/30 transition">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-black text-slate-900 uppercase text-sm">{t.productName}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                             <p className="font-black text-slate-900 dark:text-white uppercase text-sm">{t.productName}</p>
+                             <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                 status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                 status === 'failed' ? 'bg-red-100 text-red-700' :
+                                 status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                 'bg-blue-100 text-blue-700'
+                             }`}>{status}</span>
+                          </div>
                           <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Store: {t.storeName}</p>
                         </div>
                         <div className="text-right flex flex-col items-end gap-2">
-                          <p className="text-lg font-black text-indigo-600">₦{t.amount.toLocaleString()}</p>
+                          <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">₦{t.amount.toLocaleString()}</p>
                           <div className="flex gap-4">
                              {activeDispute ? (
                                <span className="text-[8px] font-black uppercase bg-red-50 text-red-600 px-2 py-0.5 rounded-full">Dispute: {activeDispute.status}</span>
                              ) : (
                                <button onClick={() => setActiveDisputeTid(t.id)} className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:underline">Raise Dispute</button>
                              )}
-                             {!hasReviewed && (
+                             {!hasReviewed && status === 'delivered' && (
                                <button onClick={() => setActiveReviewTid(t.id)} className="text-[9px] font-black uppercase tracking-widest text-indigo-500 hover:underline">Leave Review</button>
                              )}
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Show Seller Note if failed or relevant */}
+                      {t.sellerNote && (
+                          <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border-l-4 border-red-500">
+                              <p className="text-[9px] font-black uppercase text-red-600 dark:text-red-400 mb-1">Seller Message</p>
+                              <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">"{t.sellerNote}"</p>
+                          </div>
+                      )}
                     </div>
                   );
                 })}
@@ -112,12 +143,32 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm h-fit">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm h-fit">
            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Global Identity</h3>
+           <div className="flex flex-col items-center mb-6">
+              <div className="relative group w-24 h-24 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-gray-200 dark:border-slate-700 mb-3">
+                 {user.profilePicture ? (
+                    <img src={user.profilePicture} className="w-full h-full object-cover" alt="Profile" />
+                 ) : (
+                    <span className="text-2xl text-gray-300">👤</span>
+                 )}
+                 <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <span className="text-white text-[9px] font-black uppercase">Upload</span>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleProfileUpload} />
+                 </label>
+              </div>
+              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest cursor-pointer hover:underline">Change Avatar</p>
+           </div>
            <div className="space-y-4">
-              <p className="text-sm font-bold">{user.name}</p>
-              <p className="text-xs font-bold text-gray-500">{user.email}</p>
-              <div className="pt-4 border-t border-gray-100">
+              <div className="space-y-1">
+                 <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Name</p>
+                 <p className="text-sm font-bold dark:text-white">{user.name}</p>
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Email</p>
+                 <p className="text-xs font-bold text-gray-500">{user.email}</p>
+              </div>
+              <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
                  <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-2">Protocol Note</p>
                  <p className="text-[10px] font-medium leading-relaxed italic text-gray-500">Your purchases are monitored by the Super Admin Justice Hub to ensure radical vendor transparency.</p>
               </div>
@@ -128,9 +179,9 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
       {/* Review Modal */}
       {activeReviewTid && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl">
-           <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative border dark:border-slate-800">
               <button onClick={() => setActiveReviewTid(null)} className="absolute top-8 right-8 text-gray-400">✕</button>
-              <h3 className="text-2xl font-black uppercase tracking-tighter mb-8">Verified Review</h3>
+              <h3 className="text-2xl font-black uppercase tracking-tighter mb-8 dark:text-white">Verified Review</h3>
               <div className="space-y-6">
                  <div>
                     <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Rating</label>
@@ -145,7 +196,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
                     <textarea 
                       value={reviewComment} onChange={e => setReviewComment(e.target.value)}
                       placeholder="Share your experience..."
-                      className="w-full p-4 bg-gray-50 rounded-xl outline-none font-medium text-xs h-32 border border-gray-200"
+                      className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl outline-none font-medium text-xs h-32 border border-gray-200 dark:border-slate-700"
                     />
                  </div>
                  <button onClick={handleSubmitReview} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl">Submit Verified Review</button>
@@ -156,13 +207,13 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
 
       {activeDisputeTid && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl">
-           <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-12 shadow-2xl relative border dark:border-slate-800">
               <button onClick={() => setActiveDisputeTid(null)} className="absolute top-8 right-8 text-gray-400">✕</button>
-              <h3 className="text-2xl font-black uppercase tracking-tighter mb-8">Initiate Dispute Panel</h3>
+              <h3 className="text-2xl font-black uppercase tracking-tighter mb-8 dark:text-white">Initiate Dispute Panel</h3>
               <form onSubmit={handleRaiseDispute} className="space-y-6">
                  <div>
                     <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Primary Incident Reason</label>
-                    <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-bold border border-gray-200">
+                    <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl outline-none font-bold border border-gray-200 dark:border-slate-700 text-xs">
                        <option value="fake_product">Fake / Counterfeit Product</option>
                        <option value="scam">Scam / Fraud Detected</option>
                        <option value="not_delivered">Items Not Delivered</option>
@@ -175,7 +226,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ user, transactio
                     <textarea 
                       required value={disputeDesc} onChange={e => setDisputeDesc(e.target.value)}
                       placeholder="Provide evidence description for Admin Audit..."
-                      className="w-full p-4 bg-gray-50 rounded-xl outline-none font-medium text-xs h-32 border border-gray-200"
+                      className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl outline-none font-medium text-xs h-32 border border-gray-200 dark:border-slate-700"
                     />
                  </div>
                  <button type="submit" className="w-full bg-red-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl">Notify Justice Hub</button>

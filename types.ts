@@ -56,6 +56,13 @@ export interface SellerPaymentConfig {
   bankDetails?: BankDetails;
 }
 
+export interface ExtensionRequest {
+  durationMonths: number; // 6 or 12
+  amount: number;
+  proofOfPayment: string; // Base64
+  timestamp: number;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -77,12 +84,20 @@ export interface User {
   bankDetails?: BankDetails;
   verification?: SellerVerification;
   passwordHint?: string; 
+  profilePicture?: string; // General profile picture for buyers/admins
+  
+  // Rent & Subscription
   rentPaid?: boolean;
+  rentPaymentProof?: string; // Base64 of receipt
+  rentPaymentStatus?: 'pending' | 'confirmed' | 'rejected' | 'none';
   subscriptionExpiry?: number;
+  pendingExtensionRequest?: ExtensionRequest; // New field for renewal requests
+  
   aiConfig?: AIConfig;
   notifications?: string[]; 
   sellerRating?: number; // 0 to 5 stars
   monthlyReportSubscribed?: boolean;
+  joinedAt?: number;
 }
 
 export interface Review {
@@ -187,6 +202,8 @@ export interface Transaction {
   buyerId?: string;
   proofOfPayment?: string; // Base64 image
   paymentReference?: string; // Sender name
+  status: 'pending' | 'confirmed' | 'failed' | 'shipped' | 'delivered';
+  sellerNote?: string;
 }
 
 export interface VisitorLog {

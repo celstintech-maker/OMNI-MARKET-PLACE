@@ -50,16 +50,18 @@ const INITIAL_CONFIG: SiteConfig = {
 const INITIAL_USERS: User[] = [
   {
     id: 'u1', name: 'Super Admin', email: 'admin@omni.com', role: UserRole.ADMIN, pin: '6561',
-    verification: { businessName: 'Omni HQ', businessAddress: 'Global', country: 'Earth', phoneNumber: '000', profilePictureUrl: '', verificationStatus: 'verified', productSamples: [] }
+    verification: { businessName: 'Omni HQ', businessAddress: 'Global', country: 'Earth', phoneNumber: '000', profilePictureUrl: '', verificationStatus: 'verified', productSamples: [] },
+    joinedAt: Date.now()
   },
   {
     id: 's1', name: 'Tech Seller', email: 'seller@tech.com', role: UserRole.SELLER, pin: '0000', storeName: 'TechHub',
     verification: { businessName: 'Tech Hub Inc', businessAddress: '123 Tech Lane', country: 'Nigeria', phoneNumber: '1234567890', profilePictureUrl: '', verificationStatus: 'verified', identityApproved: true, productSamples: [] },
     rentPaid: true, sellerRating: 4.8, enabledPaymentMethods: ['bank_transfer', 'stripe', 'pod'],
-    country: 'Nigeria', currency: 'NGN', currencySymbol: '₦', state: 'Lagos', city: 'Ikeja'
+    country: 'Nigeria', currency: 'NGN', currencySymbol: '₦', state: 'Lagos', city: 'Ikeja',
+    joinedAt: Date.now()
   },
   {
-    id: 'b1', name: 'John Doe', email: 'buyer@gmail.com', role: UserRole.BUYER, pin: '1234'
+    id: 'b1', name: 'John Doe', email: 'buyer@gmail.com', role: UserRole.BUYER, pin: '1234', joinedAt: Date.now()
   }
 ];
 
@@ -126,6 +128,60 @@ function App() {
     }
   }, []);
 
+  // Automated Suspension Logic
+  useEffect(() => {
+    const now = Date.now();
+    const TWO_DAYS = 48 * 60 * 60 * 1000;
+    const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
+
+    let hasChanges = false;
+    const updatedUsers = users.map(u => {
+      if (u.role !== UserRole.SELLER || u.isSuspended) return u;
+
+      let shouldSuspend = false;
+      let reason = '';
+
+      // Check 1: Rent Bypass (48hrs)
+      // Condition: Verified status (bypassed) + Rent NOT paid + Time elapsed since bypass/approval
+      if (u.verification?.verificationStatus === 'verified' && !u.rentPaid && u.verification.approvalDate) {
+        if (now - u.verification.approvalDate > TWO_DAYS) {
+          shouldSuspend = true;
+          reason = 'Rent Payment Default (48hr Limit Exceeded)';
+        }
+      }
+
+      // Check 2: Compliance (14 Days)
+      // Condition: No Gov Document uploaded + Time elapsed since joining
+      // Note: If id is timestamp based, fallback to it if joinedAt missing
+      const idTimestamp = parseInt(u.id.split('-')[1]);
+      const joinDate = u.joinedAt || (!isNaN(idTimestamp) ? idTimestamp : now); 
+      
+      if (!u.verification?.govDocumentUrl && !shouldSuspend) {
+         if (now - joinDate > FOURTEEN_DAYS) {
+           shouldSuspend = true;
+           reason = 'Compliance Failure (14 Day ID Verification Limit Exceeded)';
+         }
+      }
+
+      if (shouldSuspend) {
+        hasChanges = true;
+        return {
+          ...u,
+          isSuspended: true,
+          notifications: [
+            `SYSTEM ALERT: Account Suspended. Reason: ${reason}. Please contact support immediately.`,
+            ...(u.notifications || [])
+          ]
+        };
+      }
+      return u;
+    });
+
+    if (hasChanges) {
+      setUsers(updatedUsers);
+    }
+  }, [users]); // Dependent on users to trigger checks when data changes
+
   // Visitor Logging Simulation
   useEffect(() => {
     if (isSiteUnlocked || !siteConfig.siteLocked) {
@@ -177,6 +233,7 @@ function App() {
         email,
         role, // Use the role selected in the registration form
         pin,
+        joinedAt: Date.now(),
         storeName: role === UserRole.SELLER ? storeName : undefined,
         passwordHint: hint,
         recruitedBy: referralCode,
@@ -253,6 +310,10 @@ function App() {
       ...u,
       notifications: [message, ...(u.notifications || [])]
     } : u));
+  };
+
+  const handleUpdateTransaction = (updatedTx: Transaction) => {
+    setTransactions(prev => prev.map(t => t.id === updatedTx.id ? updatedTx : t));
   };
 
   // Site Lock Rendering
@@ -355,8 +416,9 @@ function App() {
             cart={cart}
             setCart={setCart}
             onNavigate={handleNavigate}
+            currentUser={freshCurrentUser}
             onCompletePurchase={(txs) => {
-              const txsWithBuyer = txs.map(t => ({ ...t, buyerId: freshCurrentUser?.id }));
+              const txsWithBuyer = txs.map(t => ({ ...t, buyerId: freshCurrentUser?.id, status: 'pending' as const }));
               setTransactions([...transactions, ...txsWithBuyer]);
               setCart([]);
               setCurrentView('success');
@@ -399,6 +461,7 @@ function App() {
             onUpdateUser={handleUpdateUser}
             onBatchAddProducts={(newPs) => setProducts([...products, ...newPs])}
             onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
+            onUpdateTransaction={handleUpdateTransaction}
           />
         )}
 
@@ -426,6 +489,7 @@ function App() {
              reviews={reviews}
              onRaiseDispute={(d) => setDisputes([...disputes, d])}
              onAddReview={(r) => setReviews([...reviews, r])}
+             onUpdateUser={handleUpdateUser}
           />
         )}
 

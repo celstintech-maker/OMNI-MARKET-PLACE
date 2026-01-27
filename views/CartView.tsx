@@ -9,9 +9,10 @@ interface CartViewProps {
   onCompletePurchase: (newTransactions: Transaction[]) => void;
   config: SiteConfig;
   vendors: User[];
+  currentUser: User | null;
 }
 
-export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, onCompletePurchase, config, vendors }) => {
+export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, onCompletePurchase, config, vendors, currentUser }) => {
   const [checkoutStep, setCheckoutStep] = useState<'review' | 'billing' | 'payment' | 'syncing'>('review');
   const [countdown, setCountdown] = useState(5);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('home_delivery');
@@ -24,13 +25,26 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
   const [transferRefs, setTransferRefs] = useState<Record<string, string>>({});
 
   const [billing, setBilling] = useState<BillingDetails>({
-    fullName: '',
-    email: '',
+    fullName: currentUser?.name || '',
+    email: currentUser?.email || '',
     phone: '',
     address: '',
-    city: '',
-    state: ''
+    city: currentUser?.city || '',
+    state: currentUser?.state || ''
   });
+
+  // Pre-fill billing if user exists
+  useEffect(() => {
+    if (currentUser) {
+        setBilling(prev => ({
+            ...prev,
+            fullName: prev.fullName || currentUser.name,
+            email: prev.email || currentUser.email,
+            city: prev.city || currentUser.city || '',
+            state: prev.state || currentUser.state || ''
+        }));
+    }
+  }, [currentUser]);
 
   const vendorGroups = useMemo(() => {
     const groups: Record<string, { storeName: string; items: CartItem[]; total: number; sellerId: string; paymentMethod: string }> = {};
@@ -78,7 +92,8 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
           deliveryType: deliveryType,
           // Attach proof if method is bank_transfer
           proofOfPayment: method === 'bank_transfer' ? transferProofs[item.sellerId] : undefined,
-          paymentReference: method === 'bank_transfer' ? transferRefs[item.sellerId] : undefined
+          paymentReference: method === 'bank_transfer' ? transferRefs[item.sellerId] : undefined,
+          status: 'pending' // Initial status
         };
       });
       onCompletePurchase(newTransactions);
@@ -396,7 +411,18 @@ export const CartView: React.FC<CartViewProps> = ({ cart, setCart, onNavigate, o
                </div>
             </div>
             <div className="pt-8">
-               {checkoutStep === 'review' && <button onClick={() => setCheckoutStep('billing')} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Proceed to Logistics</button>}
+               {checkoutStep === 'review' && (
+                 <>
+                   {!currentUser ? (
+                     <div className="space-y-3">
+                        <button onClick={() => onNavigate('auth')} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Authenticate to Checkout</button>
+                        <p className="text-center text-[9px] text-gray-400 font-bold uppercase">Account required for order tracking</p>
+                     </div>
+                   ) : (
+                     <button onClick={() => setCheckoutStep('billing')} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] shadow-xl">Proceed to Logistics</button>
+                   )}
+                 </>
+               )}
                {checkoutStep === 'billing' && (
                  <button 
                    onClick={() => {
