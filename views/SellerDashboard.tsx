@@ -331,6 +331,14 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     onUpdateUser({ ...user, enabledPaymentMethods: newMethods });
   };
 
+  const loadSampleData = () => {
+    setBulkCsvText(`Running Sneakers, 12000, 25, Sports
+Mechanical Keyboard, 35000, 10, Electronics
+Vitamin C Serum, 8500, 40, Beauty
+Ceramic Coffee Mug, 2500, 100, Home
+Denim Jacket, 18000, 15, Fashion`);
+  };
+
   const handleBulkUpload = () => {
     if (!user.rentPaid) {
         alert("Shop Rent must be paid and confirmed before uploading inventory.");
@@ -1140,7 +1148,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               <button onClick={() => setShowBulkModal(false)} className="absolute top-8 right-8 text-gray-400 hover:text-red-500">✕</button>
               <h3 className="text-2xl font-black uppercase tracking-tighter mb-4 dark:text-white">Batch Inventory</h3>
               <div className="space-y-6">
-                 <p className="text-xs text-gray-500 font-medium">Upload CSV data. Format: <br/><code className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">Name, Price, Stock, Category</code></p>
+                 <div className="flex justify-between items-end">
+                    <p className="text-xs text-gray-500 font-medium">Upload CSV data. Format: <br/><code className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">Name, Price, Stock, Category</code></p>
+                    <button onClick={loadSampleData} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-100 transition whitespace-nowrap">Generate Sample</button>
+                 </div>
                  <textarea 
                     value={bulkCsvText}
                     onChange={e => setBulkCsvText(e.target.value)}
