@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { Product, Store, User, CartItem, SiteConfig } from '../types';
@@ -293,24 +294,26 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
            <h3 className="text-3xl sm:text-4xl font-black tracking-tighter dark:text-white">Active Protocols</h3>
            <p className="text-gray-500 font-medium text-sm px-4">Direct marketplace access for verified global distributors.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
            {activeStores.map(store => (
              <div 
               key={store.id} 
               onClick={() => onNavigateToStore(store.name)}
-              className="group bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all cursor-pointer"
+              className="group bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all cursor-pointer"
              >
-                <div className="h-40 sm:h-48 relative overflow-hidden">
+                <div className="h-32 relative overflow-hidden">
                    <img src={store.bannerUrl} className="w-full h-full object-cover group-hover:scale-105 transition duration-700" alt="" />
                 </div>
-                <div className="p-6 sm:p-8">
-                   <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-xl sm:text-2xl font-black tracking-tighter dark:text-white">{store.name}</h4>
-                      <span className="bg-green-50 dark:bg-green-900/20 text-green-600 text-[8px] font-black uppercase px-3 py-1 rounded-full">Live Node</span>
+                <div className="p-4">
+                   <div className="flex flex-col gap-1 mb-2">
+                      <div className="flex justify-between items-center">
+                         <h4 className="text-sm font-black tracking-tighter dark:text-white truncate">{store.name}</h4>
+                         <span className="bg-green-50 dark:bg-green-900/20 text-green-600 text-[6px] font-black uppercase px-2 py-0.5 rounded-full">Live</span>
+                      </div>
                    </div>
-                   <p className="text-gray-500 text-xs sm:text-sm font-medium line-clamp-2 mb-6">{store.description}</p>
-                   <button className="w-full py-4 bg-gray-50 dark:bg-slate-800 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">
-                      Access Store
+                   <p className="text-gray-500 text-[10px] font-medium line-clamp-2 mb-3 h-8">{store.description}</p>
+                   <button className="w-full py-2 bg-gray-50 dark:bg-slate-800 group-hover:bg-indigo-600 group-hover:text-white rounded-xl font-black text-[8px] uppercase tracking-widest transition-all">
+                      Access
                    </button>
                 </div>
              </div>
@@ -357,7 +360,7 @@ export const MarketplaceHome: React.FC<MarketplaceHomeProps> = ({
            </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
            {filteredProducts.map(product => (
              <ProductCard 
                key={product.id} 

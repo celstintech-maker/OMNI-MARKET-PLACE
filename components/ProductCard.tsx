@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, CartItem } from '../types';
 import { Icons, PAYMENT_METHODS } from '../constants';
@@ -64,16 +65,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     <>
       <div 
         onClick={() => setShowModal(true)}
-        className="group bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all cursor-pointer animate-slide-up relative"
+        className="group bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all cursor-pointer animate-slide-up relative"
       >
         <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-slate-800">
           <img src={product.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt={product.name} />
           {showWishlistBtn && onToggleWishlist && (
             <button 
               onClick={(e) => { e.stopPropagation(); onToggleWishlist(product.id); }}
-              className={`absolute top-4 right-4 p-3 rounded-full backdrop-blur-md transition-all ${isWishlisted ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white/80 dark:bg-slate-900/80 text-gray-400 hover:text-indigo-600'}`}
+              className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md transition-all ${isWishlisted ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white/80 dark:bg-slate-900/80 text-gray-400 hover:text-indigo-600'}`}
             >
-              <svg className="w-5 h-5" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
@@ -81,24 +82,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           
           <button 
             onClick={(e) => { e.stopPropagation(); handleAddToCart(); }}
-            className="absolute bottom-4 right-4 bg-indigo-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300"
+            className="absolute bottom-2 right-2 bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300"
           >
-            <span className="text-xl font-black">+</span>
+            <span className="text-lg font-black">+</span>
           </button>
 
-          <div className="absolute bottom-4 left-4">
-            <span className="bg-slate-950/80 backdrop-blur-md text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-xl tracking-widest shadow-xl">
+          <div className="absolute bottom-2 left-2">
+            <span className="bg-slate-950/80 backdrop-blur-md text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg tracking-widest shadow-xl">
               {product.category}
             </span>
           </div>
         </div>
-        <div className="p-6 space-y-3">
-          <div className="flex justify-between items-start gap-4">
-            <h4 className="text-sm font-black leading-tight text-slate-900 dark:text-white line-clamp-1">{product.name}</h4>
+        <div className="p-3 sm:p-4 space-y-2">
+          <div className="flex justify-between items-start gap-2">
+            <h4 className="text-xs sm:text-sm font-black leading-tight text-slate-900 dark:text-white line-clamp-1">{product.name}</h4>
           </div>
           <div className="flex items-end justify-between">
-            <p className="text-xl font-black text-indigo-600 tracking-tighter">{currency}{product.price.toLocaleString()}</p>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{product.storeName}</p>
+            <p className="text-sm sm:text-lg font-black text-indigo-600 tracking-tighter">{currency}{product.price.toLocaleString()}</p>
+            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest truncate max-w-[50%]">{product.storeName}</p>
           </div>
         </div>
       </div>
