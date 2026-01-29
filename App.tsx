@@ -18,6 +18,20 @@ import { AboutUsView } from './views/AboutUsView';
 import { ServicesView } from './views/ServicesView';
 import { ChatSupport } from './components/ChatSupport';
 
+// Firebase Imports
+import { db } from './firebase';
+import { 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  writeBatch,
+  query,
+  orderBy
+} from 'firebase/firestore';
+
 const INITIAL_CONFIG: SiteConfig = {
   siteName: 'OMNI MARKET',
   logoUrl: '',
@@ -80,80 +94,222 @@ function App() {
   });
 
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  
-  // Countdown state
   const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
   
-  // Load State from LocalStorage or Fallback to Initial Constants
-  const [users, setUsers] = useState<User[]>(() => {
-    try {
-      const saved = localStorage.getItem('omni_users');
-      return saved ? JSON.parse(saved) : INITIAL_USERS;
-    } catch (e) {
-      console.error("Failed to load users", e);
-      return INITIAL_USERS;
-    }
-  });
-  
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem('omni_products');
-      return saved ? JSON.parse(saved) : MOCK_PRODUCTS;
-    } catch (e) {
-      console.error("Failed to load products", e);
-      return MOCK_PRODUCTS;
-    }
-  });
-
-  const [stores, setStores] = useState<Store[]>(() => {
-    try {
-      const saved = localStorage.getItem('omni_stores');
-      return saved ? JSON.parse(saved) : MOCK_STORES;
-    } catch (e) {
-      console.error("Failed to load stores", e);
-      return MOCK_STORES;
-    }
-  });
-
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Application Data State (Synced with Firestore)
+  const [users, setUsers] = useState<User[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [sellerRecommendations, setSellerRecommendations] = useState<SellerRecommendation[]>(() => {
-    try {
-      const saved = localStorage.getItem('omni_recommendations');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [sellerRecommendations, setSellerRecommendations] = useState<SellerRecommendation[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
-  const [siteConfig, setSiteConfig] = useState<SiteConfig>(() => {
-    // Load config from local storage to persist API key
-    try {
-      const savedConfig = localStorage.getItem('omni_config');
-      const parsed = savedConfig ? JSON.parse(savedConfig) : INITIAL_CONFIG;
-      // Ensure stats exist if loading from old config
-      return { ...INITIAL_CONFIG, ...parsed, stats: parsed.stats || INITIAL_CONFIG.stats };
-    } catch (e) {
-      return INITIAL_CONFIG;
-    }
-  });
+  const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_CONFIG);
   const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
-  
-  const [wishlist, setWishlist] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
+  
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Persistence Effects with Try-Catch to prevent Blank Page on Quota Exceeded
-  useEffect(() => { try { localStorage.setItem('omni_users', JSON.stringify(users)); } catch(e) { console.warn("Storage quota exceeded for users"); } }, [users]);
-  useEffect(() => { try { localStorage.setItem('omni_products', JSON.stringify(products)); } catch(e) { console.warn("Storage quota exceeded for products"); alert("Storage limit reached. Cannot save more data locally."); } }, [products]);
-  useEffect(() => { try { localStorage.setItem('omni_stores', JSON.stringify(stores)); } catch(e) { console.warn("Storage quota exceeded for stores"); } }, [stores]);
-  useEffect(() => { try { localStorage.setItem('omni_config', JSON.stringify(siteConfig)); } catch(e) { console.warn("Storage quota exceeded for config"); } }, [siteConfig]);
-  useEffect(() => { try { localStorage.setItem('omni_recommendations', JSON.stringify(sellerRecommendations)); } catch(e) { console.warn("Storage quota exceeded for recommendations"); } }, [sellerRecommendations]);
+  // --- FIRESTORE SYNCHRONIZATION ---
+  useEffect(() => {
+    // 1. Users
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+        const data = snap.docs.map(d => d.data() as User);
+        setUsers(data);
+        // Initial Seed if empty
+        if (data.length === 0) {
+            INITIAL_USERS.forEach(u => setDoc(doc(db, 'users', u.id), u));
+        }
+    });
 
-  // Sync state with hash changes (Back/Forward support)
+    // 2. Products
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snap) => {
+        const data = snap.docs.map(d => d.data() as Product);
+        setProducts(data);
+        // Initial Seed if empty
+        if (data.length === 0) {
+            MOCK_PRODUCTS.forEach(p => setDoc(doc(db, 'products', p.id), p));
+        }
+    });
+
+    // 3. Stores
+    const unsubStores = onSnapshot(collection(db, 'stores'), (snap) => {
+        const data = snap.docs.map(d => d.data() as Store);
+        setStores(data);
+        if (data.length === 0) {
+            MOCK_STORES.forEach(s => setDoc(doc(db, 'stores', s.id), s));
+        }
+    });
+
+    // 4. Transactions
+    const unsubTrans = onSnapshot(collection(db, 'transactions'), (snap) => {
+        setTransactions(snap.docs.map(d => d.data() as Transaction));
+    });
+
+    // 5. Disputes
+    const unsubDisputes = onSnapshot(collection(db, 'disputes'), (snap) => {
+        setDisputes(snap.docs.map(d => d.data() as Dispute));
+    });
+
+    // 6. Reviews
+    const unsubReviews = onSnapshot(collection(db, 'reviews'), (snap) => {
+        setReviews(snap.docs.map(d => d.data() as Review));
+    });
+
+    // 7. Recommendations
+    const unsubRecs = onSnapshot(collection(db, 'recommendations'), (snap) => {
+        setSellerRecommendations(snap.docs.map(d => d.data() as SellerRecommendation));
+    });
+
+    // 8. Site Config (Singleton)
+    const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
+        if (snap.exists()) {
+            setSiteConfig(snap.data() as SiteConfig);
+        } else {
+            setDoc(doc(db, 'settings', 'config'), INITIAL_CONFIG);
+        }
+    });
+
+    // 9. Categories
+    const unsubCats = onSnapshot(doc(db, 'settings', 'categories'), (snap) => {
+        if (snap.exists()) {
+            setCategories(snap.data().list || CATEGORIES);
+        } else {
+            setDoc(doc(db, 'settings', 'categories'), { list: CATEGORIES });
+        }
+    });
+
+    // 10. Messages (Listen to all channels)
+    const unsubMsgs = onSnapshot(collection(db, 'channels'), (snap) => {
+        const msgs: Record<string, Message[]> = {};
+        snap.docs.forEach(d => {
+            msgs[d.id] = d.data().messages || [];
+        });
+        setMessages(msgs);
+    });
+
+    // 11. Visitor Logs
+    const unsubLogs = onSnapshot(query(collection(db, 'visitor_logs'), orderBy('timestamp', 'desc')), (snap) => {
+       setVisitorLogs(snap.docs.slice(0, 50).map(d => d.data() as VisitorLog));
+    });
+
+    return () => {
+        unsubUsers(); unsubProducts(); unsubStores(); unsubTrans(); unsubDisputes();
+        unsubReviews(); unsubRecs(); unsubConfig(); unsubCats(); unsubMsgs(); unsubLogs();
+    };
+  }, []);
+
+  // Sync Current User with Firestore updates
+  useEffect(() => {
+      if (currentUser) {
+          const syncedUser = users.find(u => u.id === currentUser.id);
+          if (syncedUser) setCurrentUser(syncedUser);
+      }
+  }, [users]);
+
+  // --- ACTIONS WITH FIRESTORE persistence ---
+
+  const handleUpdateUser = async (updatedUser: User) => {
+    try {
+        await setDoc(doc(db, 'users', updatedUser.id), updatedUser, { merge: true });
+    } catch (e) {
+        console.error("Error updating user:", e);
+        alert("Failed to update user profile. Check connection.");
+    }
+  };
+
+  const handleAddProduct = async (product: Product) => {
+    try {
+        await setDoc(doc(db, 'products', product.id), product);
+    } catch (e) {
+        console.error("Error adding product:", e);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    try {
+        await deleteDoc(doc(db, 'products', id));
+    } catch (e) {
+        console.error("Error deleting product:", e);
+    }
+  };
+
+  const handleBatchAddProducts = async (products: Product[]) => {
+      const batch = writeBatch(db);
+      products.forEach(p => {
+          const ref = doc(db, 'products', p.id);
+          batch.set(ref, p);
+      });
+      await batch.commit();
+  };
+
+  const handleUpdateTransaction = async (tx: Transaction) => {
+      await setDoc(doc(db, 'transactions', tx.id), tx, { merge: true });
+  };
+
+  const handleUpdateDispute = async (d: Dispute) => {
+      await setDoc(doc(db, 'disputes', d.id), d, { merge: true });
+  };
+
+  const handleAddReview = async (r: Review) => {
+      await setDoc(doc(db, 'reviews', r.id), r);
+  };
+
+  const handleAddRecommendation = async (r: SellerRecommendation) => {
+      await setDoc(doc(db, 'recommendations', r.id), r);
+  };
+
+  const handleUpdateConfig = async (newConfig: SiteConfig) => {
+      await setDoc(doc(db, 'settings', 'config'), newConfig);
+  };
+
+  const handleAddCategory = async (cat: string) => {
+      const newList = [...categories, cat];
+      await setDoc(doc(db, 'settings', 'categories'), { list: newList });
+  };
+
+  const handleSendMessage = async (channelId: string, msg: Message) => {
+      // Optimistic update locally
+      setMessages(prev => ({
+          ...prev,
+          [channelId]: [...(prev[channelId] || []), msg]
+      }));
+      // Persist
+      const currentMsgs = messages[channelId] || [];
+      await setDoc(doc(db, 'channels', channelId), { messages: [...currentMsgs, msg] }, { merge: true });
+  };
+
+  const handleCompletePurchase = async (newTxs: Transaction[]) => {
+      const batch = writeBatch(db);
+      newTxs.forEach(tx => {
+          const ref = doc(db, 'transactions', tx.id);
+          batch.set(ref, { ...tx, buyerId: currentUser?.id, status: 'pending' });
+          
+          // Deduct stock
+          const prodRef = doc(db, 'products', tx.productId);
+          const product = products.find(p => p.id === tx.productId);
+          if (product) {
+             const qty = Math.round(tx.amount / product.price); // Approximate qty back-calc or pass in tx
+             // Ideally we pass items with quantity to this function but for now we rely on cart
+             // For precision, let's just create the transactions. Stock deduction should be strictly server-side or carefully managed.
+             // We'll skip complex stock deduction here to avoid race conditions without transactions.
+          }
+      });
+      await batch.commit();
+      setCart([]);
+      handleNavigate('success');
+  };
+
+  const handleNavigate = (v: string) => {
+    window.location.hash = `#/${v}`;
+    setCurrentView(v);
+    window.scrollTo(0, 0);
+  };
+
+  // Sync hash changes
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '');
@@ -164,47 +320,34 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const handleNavigate = (v: string) => {
-    window.location.hash = `#/${v}`;
-    setCurrentView(v);
-    window.scrollTo(0, 0);
-  };
-
-  // Session Restore ("Remember Login")
+  // Visitor Logging (with throttle)
   useEffect(() => {
-    const savedSessionId = localStorage.getItem('omni_session_id');
-    if (savedSessionId) {
-      const returningUser = users.find(u => u.id === savedSessionId);
-      if (returningUser) {
-        setCurrentUser(returningUser);
-        
-        // Only redirect based on role if we are on the home page or root
-        // If the user refreshed on a specific page (e.g. #/store/xyz), respect that.
-        const currentHash = window.location.hash.replace('#/', '');
-        if (!currentHash || currentHash === 'home' || currentHash === 'auth') {
-           if (returningUser.role === UserRole.ADMIN) handleNavigate('admin-dashboard');
-           else if (returningUser.role === UserRole.SELLER) handleNavigate('seller-dashboard');
-           else if (returningUser.role === UserRole.STAFF) handleNavigate('staff-dashboard');
-        }
-      }
+    if ((isSiteUnlocked || !siteConfig.siteLocked) && Math.random() > 0.7) {
+        const id = `vis-${Date.now()}`;
+        // Fire and forget
+        setDoc(doc(db, 'visitor_logs', id), {
+            id,
+            ip: '127.0.0.1', // Client IP detection requires backend
+            location: 'Unknown',
+            timestamp: Date.now(),
+            device: navigator.platform,
+            page: currentView
+        }).catch(e => console.log('Log error', e));
     }
-  }, []); // Run once on mount
+  }, [currentView, isSiteUnlocked, siteConfig.siteLocked]);
 
-  // Automated Suspension Logic
+  // Automated Suspension Logic (Client-side enforcement for demo)
   useEffect(() => {
     const now = Date.now();
     const TWO_DAYS = 48 * 60 * 60 * 1000;
     const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
 
-    let hasChanges = false;
-    const updatedUsers = users.map(u => {
-      if (u.role !== UserRole.SELLER || u.isSuspended) return u;
+    users.forEach(u => {
+      if (u.role !== UserRole.SELLER || u.isSuspended) return;
 
       let shouldSuspend = false;
       let reason = '';
 
-      // Check 1: Rent Bypass (48hrs)
-      // Condition: Verified status (bypassed) + Rent NOT paid + Time elapsed since bypass/approval
       if (u.verification?.verificationStatus === 'verified' && !u.rentPaid && u.verification.approvalDate) {
         if (now - u.verification.approvalDate > TWO_DAYS) {
           shouldSuspend = true;
@@ -212,9 +355,6 @@ function App() {
         }
       }
 
-      // Check 2: Compliance (14 Days)
-      // Condition: No Gov Document uploaded + Time elapsed since joining
-      // Note: If id is timestamp based, fallback to it if joinedAt missing
       const idTimestamp = parseInt(u.id.split('-')[1]);
       const joinDate = u.joinedAt || (!isNaN(idTimestamp) ? idTimestamp : now); 
       
@@ -226,41 +366,17 @@ function App() {
       }
 
       if (shouldSuspend) {
-        hasChanges = true;
-        return {
+        handleUpdateUser({
           ...u,
           isSuspended: true,
           notifications: [
             `SYSTEM ALERT: Account Suspended. Reason: ${reason}. Please contact support immediately.`,
             ...(u.notifications || [])
           ]
-        };
+        });
       }
-      return u;
     });
-
-    if (hasChanges) {
-      setUsers(updatedUsers);
-    }
-  }, [users]); // Dependent on users to trigger checks when data changes
-
-  // Visitor Logging Simulation
-  useEffect(() => {
-    if (isSiteUnlocked || !siteConfig.siteLocked) {
-        const fakeIPs = ['192.168.1.1', '10.0.0.5', '172.16.0.12', '102.34.12.1'];
-        const fakeLocs = ['Lagos, NG', 'London, UK', 'New York, USA', 'Abuja, NG'];
-        
-        const newLog: VisitorLog = {
-            id: `vis-${Date.now()}`,
-            ip: fakeIPs[Math.floor(Math.random() * fakeIPs.length)],
-            location: fakeLocs[Math.floor(Math.random() * fakeLocs.length)],
-            timestamp: Date.now(),
-            device: window.navigator.platform,
-            page: currentView
-        };
-        setVisitorLogs(prev => [newLog, ...prev].slice(0, 50)); // Keep last 50
-    }
-  }, [currentView, isSiteUnlocked, siteConfig.siteLocked]);
+  }, [users]);
 
   // Countdown Logic
   useEffect(() => {
@@ -291,18 +407,13 @@ function App() {
 
   const activeStore = stores.find(s => s.name === (currentView.startsWith('store/') ? decodeURIComponent(currentView.split('/')[1]) : ''));
 
-  const handleLogin = (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string, extraDetails?: any) => {
-    // SMART LOGIN: 
-    // 1. Search for user by email ONLY (ignore the role toggle on the UI).
+  const handleLogin = async (email: string, role: UserRole, pin: string, storeName?: string, hint?: string, referralCode?: string, extraDetails?: any) => {
     const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     
     if (existing) {
-      // User exists -> Attempt Login
       if (existing.pin === pin) {
         setCurrentUser(existing);
-        localStorage.setItem('omni_session_id', existing.id); // Save Session
-        
-        // Redirect based on their ACTUAL registered role
+        // Persist session if needed, for now just state
         if (existing.role === UserRole.ADMIN) handleNavigate('admin-dashboard');
         else if (existing.role === UserRole.SELLER) handleNavigate('seller-dashboard');
         else if (existing.role === UserRole.BUYER) handleNavigate('home');
@@ -311,12 +422,11 @@ function App() {
         alert("Invalid PIN");
       }
     } else {
-      // User does NOT exist -> Proceed with Registration
       const newUser: User = {
         id: `u-${Date.now()}`,
         name: extraDetails?.fullName || email.split('@')[0],
         email,
-        role, // Use the role selected in the registration form
+        role,
         pin,
         joinedAt: Date.now(),
         storeName: role === UserRole.SELLER ? storeName : undefined,
@@ -336,29 +446,28 @@ function App() {
         } : undefined
       };
       
-      setUsers(prev => [...prev, newUser]);
+      // Register in Firestore
+      await setDoc(doc(db, 'users', newUser.id), newUser);
       setCurrentUser(newUser);
-      localStorage.setItem('omni_session_id', newUser.id); // Save Session
 
       if (role === UserRole.SELLER && storeName) {
-        setStores(prev => [...prev, {
+        const newStore: Store = {
           id: `st-${Date.now()}`,
           sellerId: newUser.id,
           name: storeName,
           description: 'New store',
           bannerUrl: 'https://picsum.photos/1200/400',
           status: 'active'
-        }]);
+        };
+        await setDoc(doc(db, 'stores', newStore.id), newStore);
       }
       
-      // Redirect
       handleNavigate(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
     }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('omni_session_id'); // Clear Session
     handleNavigate('home');
   };
 
@@ -378,25 +487,8 @@ function App() {
     }
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    if (currentUser?.id === updatedUser.id) {
-      setCurrentUser(updatedUser);
-    }
-  };
+  // --- RENDER ---
 
-  const handleSendNotification = (userId: string, message: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? {
-      ...u,
-      notifications: [message, ...(u.notifications || [])]
-    } : u));
-  };
-
-  const handleUpdateTransaction = (updatedTx: Transaction) => {
-    setTransactions(prev => prev.map(t => t.id === updatedTx.id ? updatedTx : t));
-  };
-
-  // Site Lock Rendering
   if (!isSiteUnlocked && siteConfig.siteLocked) {
     return (
       <div className={`min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 ${theme}`}>
@@ -413,7 +505,6 @@ function App() {
              {siteConfig.maintenanceModeMessage || "Access is restricted to authorized personnel only."}
           </p>
 
-          {/* COUNTDOWN TIMER */}
           {timeLeft && (
               <div className="grid grid-cols-4 gap-4 max-w-lg mx-auto py-8">
                   <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
@@ -490,7 +581,7 @@ function App() {
             onAddToCart={handleAddToCart}
             onBecomeSeller={() => { setCurrentUser(null); handleNavigate('auth'); }}
             onFlagProduct={(pid) => {
-               setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
+               handleUpdateProduct({ ...products.find(p => p.id === pid)!, isFlagged: true, flags: (products.find(p => p.id === pid)?.flags || 0) + 1 });
             }}
           />
         )}
@@ -517,7 +608,8 @@ function App() {
               isLoggedIn={!!freshCurrentUser}
               onAddToCart={handleAddToCart}
               onFlagProduct={(pid) => {
-                 setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
+                 const p = products.find(prod => prod.id === pid);
+                 if (p) handleUpdateProduct({ ...p, isFlagged: true, flags: (p.flags || 0) + 1 });
               }}
             />
           ) : (
@@ -536,12 +628,7 @@ function App() {
             setCart={setCart}
             onNavigate={handleNavigate}
             currentUser={freshCurrentUser}
-            onCompletePurchase={(txs) => {
-              const txsWithBuyer = txs.map(t => ({ ...t, buyerId: freshCurrentUser?.id, status: 'pending' as const }));
-              setTransactions([...transactions, ...txsWithBuyer]);
-              setCart([]);
-              handleNavigate('success');
-            }}
+            onCompletePurchase={handleCompletePurchase}
             config={siteConfig}
             vendors={users}
           />
@@ -549,7 +636,7 @@ function App() {
 
         {currentView === 'success' && (
           <PurchaseSuccessView 
-             transactions={transactions.slice(-1)} 
+             transactions={transactions.slice(-1)} // Just shows the latest one for demo, ideally filter by recent ID
              onNavigate={handleNavigate}
           />
         )}
@@ -576,13 +663,13 @@ function App() {
              <SellerDashboard 
                 user={freshCurrentUser} products={products} adminConfig={siteConfig} disputes={disputes} categories={categories}
                 transactions={transactions} reviews={reviews} recommendations={sellerRecommendations}
-                onAddProduct={(p) => setProducts([...products, { ...p, id: `p-${Date.now()}` } as Product])}
-                onDeleteProduct={(id) => setProducts(products.filter(p => p.id !== id))}
+                onAddProduct={handleAddProduct}
+                onDeleteProduct={handleDeleteProduct}
                 onUpdateUser={handleUpdateUser}
-                onBatchAddProducts={(newPs) => setProducts([...products, ...newPs])}
-                onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
+                onBatchAddProducts={handleBatchAddProducts}
+                onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), p)}
                 onUpdateTransaction={handleUpdateTransaction}
-                onAddCategory={(cat) => setCategories(prev => [...prev, cat])}
+                onAddCategory={handleAddCategory}
              />
           ) : (
              <div className="py-32 text-center">
@@ -598,15 +685,15 @@ function App() {
               <AdminDashboard 
                  vendors={users} stores={stores} products={products} transactions={transactions} categories={categories}
                  siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs} sellerRecommendations={sellerRecommendations}
-                 onUpdateConfig={setSiteConfig}
-                 onToggleVendorStatus={(id) => setUsers(users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u))}
-                 onDeleteVendor={(id) => { setUsers(users.filter(u => u.id !== id)); setStores(stores.filter(s => s.sellerId !== id)); }}
+                 onUpdateConfig={handleUpdateConfig}
+                 onToggleVendorStatus={(id) => { const u = users.find(x => x.id === id); if(u) handleUpdateUser({ ...u, isSuspended: !u.isSuspended }); }}
+                 onDeleteVendor={(id) => { deleteDoc(doc(db, 'users', id)); }}
                  onUpdateUser={handleUpdateUser}
-                 onUpdateDispute={(updated) => setDisputes(disputes.map(d => d.id === updated.id ? updated : d))}
-                 onAddCategory={(cat) => setCategories([...categories, cat])}
-                 onCreateStaff={(staff) => setUsers([...users, staff])}
-                 onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
-                 onSendNotification={handleSendNotification}
+                 onUpdateDispute={handleUpdateDispute}
+                 onAddCategory={handleAddCategory}
+                 onCreateStaff={(staff) => setDoc(doc(db, 'users', staff.id), staff)}
+                 onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), p)}
+                 onSendNotification={(id, msg) => { const u = users.find(x => x.id === id); if(u) handleUpdateUser({ ...u, notifications: [msg, ...(u.notifications || [])] }); }}
               />
            ) : (
               <div className="py-32 text-center">
@@ -625,10 +712,10 @@ function App() {
                  disputes={disputes}
                  reviews={reviews}
                  recommendations={sellerRecommendations}
-                 onRaiseDispute={(d) => setDisputes([...disputes, d])}
-                 onAddReview={(r) => setReviews([...reviews, r])}
+                 onRaiseDispute={(d) => setDoc(doc(db, 'disputes', d.id), d)}
+                 onAddReview={handleAddReview}
                  onUpdateUser={handleUpdateUser}
-                 onAddRecommendation={(rec) => setSellerRecommendations([...sellerRecommendations, rec])}
+                 onAddRecommendation={handleAddRecommendation}
               />
            ) : (
                <div className="py-32 text-center">
@@ -654,17 +741,17 @@ function App() {
         currentUser={freshCurrentUser}
         stores={stores}
         globalMessages={messages}
-        onSendMessage={(channelId, msg) => {
-           setMessages(prev => ({
-             ...prev,
-             [channelId]: [...(prev[channelId] || []), msg]
-           }));
-        }}
+        onSendMessage={handleSendMessage}
         theme={theme}
         config={siteConfig}
       />
     </div>
   );
+}
+
+// Helper for Flagging (needed inside component scope but defined here for cleaner JSX)
+const handleUpdateProduct = async (p: Product) => {
+    await setDoc(doc(db, 'products', p.id), p);
 }
 
 export default App;
