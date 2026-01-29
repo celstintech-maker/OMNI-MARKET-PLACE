@@ -72,7 +72,13 @@ const INITIAL_USERS: User[] = [
 function App() {
   const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
   const [lockPassword, setLockPassword] = useState('');
-  const [currentView, setCurrentView] = useState<string>('home');
+  
+  // Initialize view from hash or default to home
+  const [currentView, setCurrentView] = useState<string>(() => {
+    const hash = window.location.hash.replace('#/', '');
+    return hash ? decodeURIComponent(hash) : 'home';
+  });
+
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
   // Countdown state
@@ -147,6 +153,23 @@ function App() {
   useEffect(() => { try { localStorage.setItem('omni_config', JSON.stringify(siteConfig)); } catch(e) { console.warn("Storage quota exceeded for config"); } }, [siteConfig]);
   useEffect(() => { try { localStorage.setItem('omni_recommendations', JSON.stringify(sellerRecommendations)); } catch(e) { console.warn("Storage quota exceeded for recommendations"); } }, [sellerRecommendations]);
 
+  // Sync state with hash changes (Back/Forward support)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#/', '');
+      setCurrentView(hash ? decodeURIComponent(hash) : 'home');
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleNavigate = (v: string) => {
+    window.location.hash = `#/${v}`;
+    setCurrentView(v);
+    window.scrollTo(0, 0);
+  };
+
   // Session Restore ("Remember Login")
   useEffect(() => {
     const savedSessionId = localStorage.getItem('omni_session_id');
@@ -154,14 +177,18 @@ function App() {
       const returningUser = users.find(u => u.id === savedSessionId);
       if (returningUser) {
         setCurrentUser(returningUser);
-        // Auto-redirect to dashboard if they are a vendor/admin
-        if (returningUser.role === UserRole.ADMIN) setCurrentView('admin-dashboard');
-        else if (returningUser.role === UserRole.SELLER) setCurrentView('seller-dashboard');
-        else if (returningUser.role === UserRole.STAFF) setCurrentView('staff-dashboard');
-        // Buyers usually stay on home, but let's leave them on home
+        
+        // Only redirect based on role if we are on the home page or root
+        // If the user refreshed on a specific page (e.g. #/store/xyz), respect that.
+        const currentHash = window.location.hash.replace('#/', '');
+        if (!currentHash || currentHash === 'home' || currentHash === 'auth') {
+           if (returningUser.role === UserRole.ADMIN) handleNavigate('admin-dashboard');
+           else if (returningUser.role === UserRole.SELLER) handleNavigate('seller-dashboard');
+           else if (returningUser.role === UserRole.STAFF) handleNavigate('staff-dashboard');
+        }
       }
     }
-  }, []);
+  }, []); // Run once on mount
 
   // Automated Suspension Logic
   useEffect(() => {
@@ -276,10 +303,10 @@ function App() {
         localStorage.setItem('omni_session_id', existing.id); // Save Session
         
         // Redirect based on their ACTUAL registered role
-        if (existing.role === UserRole.ADMIN) setCurrentView('admin-dashboard');
-        else if (existing.role === UserRole.SELLER) setCurrentView('seller-dashboard');
-        else if (existing.role === UserRole.BUYER) setCurrentView('home');
-        else setCurrentView('staff-dashboard');
+        if (existing.role === UserRole.ADMIN) handleNavigate('admin-dashboard');
+        else if (existing.role === UserRole.SELLER) handleNavigate('seller-dashboard');
+        else if (existing.role === UserRole.BUYER) handleNavigate('home');
+        else handleNavigate('staff-dashboard');
       } else {
         alert("Invalid PIN");
       }
@@ -325,14 +352,14 @@ function App() {
       }
       
       // Redirect
-      setCurrentView(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
+      handleNavigate(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
     }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('omni_session_id'); // Clear Session
-    setCurrentView('home');
+    handleNavigate('home');
   };
 
   const toggleTheme = () => {
@@ -349,11 +376,6 @@ function App() {
     } else {
       setCart([...cart, item]);
     }
-  };
-
-  const handleNavigate = (v: string) => {
-    setCurrentView(v);
-    window.scrollTo(0, 0);
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -450,7 +472,7 @@ function App() {
         theme={theme} 
         onToggleTheme={toggleTheme}
         cartCount={cart.reduce((a,b) => a + b.quantity, 0)}
-        onOpenCart={() => setCurrentView('cart')}
+        onOpenCart={() => handleNavigate('cart')}
         config={siteConfig}
         wishlistCount={wishlist.length}
       >
@@ -466,7 +488,7 @@ function App() {
             isLoggedIn={!!freshCurrentUser}
             currentUser={freshCurrentUser}
             onAddToCart={handleAddToCart}
-            onBecomeSeller={() => { setCurrentUser(null); setCurrentView('auth'); }}
+            onBecomeSeller={() => { setCurrentUser(null); handleNavigate('auth'); }}
             onFlagProduct={(pid) => {
                setProducts(prev => prev.map(prod => prod.id === pid ? {...prod, flags: (prod.flags || 0) + 1, isFlagged: true} : prod));
             }}
@@ -518,7 +540,7 @@ function App() {
               const txsWithBuyer = txs.map(t => ({ ...t, buyerId: freshCurrentUser?.id, status: 'pending' as const }));
               setTransactions([...transactions, ...txsWithBuyer]);
               setCart([]);
-              setCurrentView('success');
+              handleNavigate('success');
             }}
             config={siteConfig}
             vendors={users}
@@ -549,47 +571,72 @@ function App() {
         {currentView === 'about' && <AboutUsView config={siteConfig} />}
         {currentView === 'services' && <ServicesView config={siteConfig} />}
 
-        {currentView === 'seller-dashboard' && freshCurrentUser && (
-          <SellerDashboard 
-            user={freshCurrentUser} products={products} adminConfig={siteConfig} disputes={disputes} categories={categories}
-            transactions={transactions} reviews={reviews} recommendations={sellerRecommendations}
-            onAddProduct={(p) => setProducts([...products, { ...p, id: `p-${Date.now()}` } as Product])}
-            onDeleteProduct={(id) => setProducts(products.filter(p => p.id !== id))}
-            onUpdateUser={handleUpdateUser}
-            onBatchAddProducts={(newPs) => setProducts([...products, ...newPs])}
-            onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
-            onUpdateTransaction={handleUpdateTransaction}
-          />
+        {currentView === 'seller-dashboard' && (
+          freshCurrentUser ? (
+             <SellerDashboard 
+                user={freshCurrentUser} products={products} adminConfig={siteConfig} disputes={disputes} categories={categories}
+                transactions={transactions} reviews={reviews} recommendations={sellerRecommendations}
+                onAddProduct={(p) => setProducts([...products, { ...p, id: `p-${Date.now()}` } as Product])}
+                onDeleteProduct={(id) => setProducts(products.filter(p => p.id !== id))}
+                onUpdateUser={handleUpdateUser}
+                onBatchAddProducts={(newPs) => setProducts([...products, ...newPs])}
+                onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
+                onUpdateTransaction={handleUpdateTransaction}
+                onAddCategory={(cat) => setCategories(prev => [...prev, cat])}
+             />
+          ) : (
+             <div className="py-32 text-center">
+                 <h2 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h2>
+                 <p className="text-gray-500 mb-4">You must be logged in to access the Seller Dashboard.</p>
+                 <button onClick={() => handleNavigate('auth')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs">Login</button>
+             </div>
+          )
         )}
 
-        {currentView === 'admin-dashboard' && freshCurrentUser?.role === UserRole.ADMIN && (
-          <AdminDashboard 
-            vendors={users} stores={stores} products={products} transactions={transactions} categories={categories}
-            siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs} sellerRecommendations={sellerRecommendations}
-            onUpdateConfig={setSiteConfig}
-            onToggleVendorStatus={(id) => setUsers(users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u))}
-            onDeleteVendor={(id) => { setUsers(users.filter(u => u.id !== id)); setStores(stores.filter(s => s.sellerId !== id)); }}
-            onUpdateUser={handleUpdateUser}
-            onUpdateDispute={(updated) => setDisputes(disputes.map(d => d.id === updated.id ? updated : d))}
-            onAddCategory={(cat) => setCategories([...categories, cat])}
-            onCreateStaff={(staff) => setUsers([...users, staff])}
-            onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
-            onSendNotification={handleSendNotification}
-          />
+        {currentView === 'admin-dashboard' && (
+           freshCurrentUser?.role === UserRole.ADMIN ? (
+              <AdminDashboard 
+                 vendors={users} stores={stores} products={products} transactions={transactions} categories={categories}
+                 siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs} sellerRecommendations={sellerRecommendations}
+                 onUpdateConfig={setSiteConfig}
+                 onToggleVendorStatus={(id) => setUsers(users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u))}
+                 onDeleteVendor={(id) => { setUsers(users.filter(u => u.id !== id)); setStores(stores.filter(s => s.sellerId !== id)); }}
+                 onUpdateUser={handleUpdateUser}
+                 onUpdateDispute={(updated) => setDisputes(disputes.map(d => d.id === updated.id ? updated : d))}
+                 onAddCategory={(cat) => setCategories([...categories, cat])}
+                 onCreateStaff={(staff) => setUsers([...users, staff])}
+                 onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
+                 onSendNotification={handleSendNotification}
+              />
+           ) : (
+              <div className="py-32 text-center">
+                 <h2 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h2>
+                 <p className="text-gray-500 mb-4">Authorized Personnel Only.</p>
+                 <button onClick={() => handleNavigate('auth')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs">Login</button>
+              </div>
+           )
         )}
 
-        {currentView === 'buyer-dashboard' && freshCurrentUser?.role === UserRole.BUYER && (
-          <BuyerDashboard 
-             user={freshCurrentUser}
-             transactions={transactions.filter(t => t.buyerId === freshCurrentUser.id)}
-             disputes={disputes}
-             reviews={reviews}
-             recommendations={sellerRecommendations}
-             onRaiseDispute={(d) => setDisputes([...disputes, d])}
-             onAddReview={(r) => setReviews([...reviews, r])}
-             onUpdateUser={handleUpdateUser}
-             onAddRecommendation={(rec) => setSellerRecommendations([...sellerRecommendations, rec])}
-          />
+        {currentView === 'buyer-dashboard' && (
+           freshCurrentUser?.role === UserRole.BUYER ? (
+              <BuyerDashboard 
+                 user={freshCurrentUser}
+                 transactions={transactions.filter(t => t.buyerId === freshCurrentUser.id)}
+                 disputes={disputes}
+                 reviews={reviews}
+                 recommendations={sellerRecommendations}
+                 onRaiseDispute={(d) => setDisputes([...disputes, d])}
+                 onAddReview={(r) => setReviews([...reviews, r])}
+                 onUpdateUser={handleUpdateUser}
+                 onAddRecommendation={(rec) => setSellerRecommendations([...sellerRecommendations, rec])}
+              />
+           ) : (
+               <div className="py-32 text-center">
+                 <h2 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h2>
+                 <p className="text-gray-500 mb-4">Please login to view your buyer portal.</p>
+                 <button onClick={() => handleNavigate('auth')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs">Login</button>
+              </div>
+           )
         )}
 
         {currentView === 'staff-dashboard' && freshCurrentUser && (

@@ -18,15 +18,17 @@ interface SellerDashboardProps {
   onBatchAddProducts?: (products: Product[]) => void;
   onUpdateProduct?: (product: Product) => void;
   onUpdateTransaction?: (transaction: Transaction) => void;
+  onAddCategory: (category: string) => void;
 }
 
 export const SellerDashboard: React.FC<SellerDashboardProps> = ({ 
-  user, products, adminConfig, disputes, transactions, categories, reviews, recommendations = [], onAddProduct, onDeleteProduct, onUpdateUser, onBatchAddProducts, onUpdateProduct, onUpdateTransaction
+  user, products, adminConfig, disputes, transactions, categories, reviews, recommendations = [], onAddProduct, onDeleteProduct, onUpdateUser, onBatchAddProducts, onUpdateProduct, onUpdateTransaction, onAddCategory
 }) => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'finance' | 'settings' | 'ai' | 'orders' | 'compliance' | 'analytics' | 'reputation'>('inventory');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkCsvText, setBulkCsvText] = useState('');
+  const [bulkPreview, setBulkPreview] = useState<Product[]>([]);
   const [filterLowStock, setFilterLowStock] = useState(false);
   
   // Subscription & Extension State
@@ -54,6 +56,9 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [docPreview, setDocPreview] = useState<string | null>(user.verification?.govDocumentUrl || null);
   const [profilePicPreview, setProfilePicPreview] = useState<string | null>(user.verification?.profilePictureUrl || null);
   const [storeNameDraft, setStoreNameDraft] = useState(user.storeName || '');
+  
+  // New Category State
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   // Payment Gateway Local State
   const [gatewayKeys, setGatewayKeys] = useState({
@@ -104,7 +109,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         
         if (diff <= 0) {
           setTimeLeft({ days: 0, hours: 0, minutes: 0 });
-          // Optionally handle expiration logic here (e.g. set rentPaid to false)
         } else {
           const days = Math.floor(diff / (1000 * 60 * 60 * 24));
           const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -131,7 +135,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   // Seller Rating Calculation
   const sellerRating = useMemo(() => {
-    // Combine product reviews and seller recommendations
     const sellerReviews = reviews.filter(r => myProducts.some(p => p.id === r.productId));
     const allRatings = [...sellerReviews.map(r => r.rating), ...myRecommendations.map(r => r.rating)];
     
@@ -158,8 +161,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleIdentitySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB Limit
-        alert("File too large. Please use a smaller image (<1MB) for demo purposes.");
+      if (file.size > 2 * 1024 * 1024) { 
+        alert("File too large. Max 2MB.");
         return;
       }
       const reader = new FileReader();
@@ -171,8 +174,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleProfilePicSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB Limit
-        alert("File too large. Please use a smaller image (<1MB) for demo purposes.");
+      if (file.size > 2 * 1024 * 1024) { 
+        alert("File too large. Max 2MB.");
         return;
       }
       const reader = new FileReader();
@@ -183,8 +186,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const handleFileSelect = (field: keyof typeof newListing, file: File | null) => {
     if (file) {
-      if (file.size > 500 * 1024) { // 500KB Limit to be extremely safe with localStorage
-        alert("Image too large. Please use an image under 500KB to prevent storage errors.");
+      if (file.size > 5 * 1024 * 1024) { 
+        alert("File too large. Please use a file under 5MB.");
         return;
       }
       const reader = new FileReader();
@@ -208,12 +211,11 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     alert("Compliance Packet Transmitted. Audit Pending.");
   };
 
-  // New: Submit Rent Proof
   const handleRentProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        if (file.size > 1024 * 1024) {
-            alert("File too large. Max 1MB.");
+        if (file.size > 2 * 1024 * 1024) {
+            alert("File too large. Max 2MB.");
             return;
         }
         const reader = new FileReader();
@@ -235,7 +237,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     alert("Payment Proof Submitted. Please wait for Admin confirmation.");
   };
 
-  // Copy URL Handler
   const handleCopyLink = () => {
     const url = `${window.location.origin}/#/store/${encodeURIComponent(user.storeName || '')}`;
     navigator.clipboard.writeText(url);
@@ -243,7 +244,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     setTimeout(() => setUrlCopied(false), 2000);
   };
 
-  // Extension Modal Handler
   const handleOpenExtension = (duration: 6 | 12) => {
     setExtensionDuration(duration);
     setExtensionProof(null);
@@ -273,8 +273,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        if (file.size > 1024 * 1024) {
-            alert("File too large. Max 1MB.");
+        if (file.size > 2 * 1024 * 1024) {
+            alert("File too large. Max 2MB.");
             return;
         }
         const reader = new FileReader();
@@ -331,6 +331,20 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     onUpdateUser({ ...user, enabledPaymentMethods: newMethods });
   };
 
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) {
+        alert("Please enter a category name");
+        return;
+    }
+    if (categories.includes(newCategoryName)) {
+        alert("Category already exists");
+        return;
+    }
+    onAddCategory(newCategoryName);
+    setNewCategoryName('');
+    alert("New Category Created: " + newCategoryName);
+  };
+
   const loadSampleData = () => {
     setBulkCsvText(`Running Sneakers, 12000, 25, Sports
 Mechanical Keyboard, 35000, 10, Electronics
@@ -339,7 +353,7 @@ Ceramic Coffee Mug, 2500, 100, Home
 Denim Jacket, 18000, 15, Fashion`);
   };
 
-  const handleBulkUpload = () => {
+  const handleParseBulk = () => {
     if (!user.rentPaid) {
         alert("Shop Rent must be paid and confirmed before uploading inventory.");
         return;
@@ -384,13 +398,20 @@ Denim Jacket, 18000, 15, Fashion`);
       }
     }
 
-    if (newProducts.length > 0 && onBatchAddProducts) {
-      onBatchAddProducts(newProducts);
-      alert(`Successfully uploaded ${newProducts.length} products.`);
-      setBulkCsvText('');
-      setShowBulkModal(false);
+    if (newProducts.length > 0) {
+      setBulkPreview(newProducts);
     } else {
       alert("Failed to parse CSV. Format: Name, Price, Stock, Category");
+    }
+  };
+
+  const handleUploadLive = () => {
+    if (bulkPreview.length > 0 && onBatchAddProducts) {
+      onBatchAddProducts(bulkPreview);
+      alert(`Successfully uploaded ${bulkPreview.length} products to the live market.`);
+      setBulkPreview([]);
+      setBulkCsvText('');
+      setShowBulkModal(false);
     }
   };
 
@@ -501,7 +522,6 @@ Denim Jacket, 18000, 15, Fashion`);
 
   return (
     <div className="space-y-8 animate-fade-in pb-20 relative px-2 sm:px-0">
-      {/* Low Stock Warning */}
       {lowStockProducts.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-6 shadow-lg animate-slide-up flex justify-between items-center rounded-2xl">
            <div>
@@ -514,7 +534,6 @@ Denim Jacket, 18000, 15, Fashion`);
         </div>
       )}
 
-      {/* ... (Verification Warning, Notifications, Rental Fee Logic - Keeping existing blocks) ... */}
       {!user.verification?.govDocumentUrl && (
         <div className="bg-[#fef9c3] dark:bg-yellow-900/30 border-4 border-double border-[#854d0e] dark:border-yellow-600 text-[#854d0e] dark:text-yellow-500 p-6 text-center font-serif shadow-xl animate-bounce rounded-2xl">
            <h3 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-[#854d0e] dark:border-yellow-600 inline-block mb-2 px-4">Notice of Compliance</h3>
@@ -591,7 +610,6 @@ Denim Jacket, 18000, 15, Fashion`);
                )}
             </div>
             
-            {/* Extension Buttons or Pending State */}
             {user.pendingExtensionRequest ? (
                 <div className="bg-indigo-800/50 px-6 py-3 rounded-xl border border-indigo-600/50 flex items-center gap-3">
                     <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
@@ -619,7 +637,7 @@ Denim Jacket, 18000, 15, Fashion`);
         </div>
       )}
 
-      {/* Extension Payment Modal - (Keeping existing block) ... */}
+      {/* Extension Payment Modal */}
       {showExtensionModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl animate-fade-in">
             <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 sm:p-10 shadow-2xl relative border dark:border-slate-800 animate-slide-up">
@@ -714,7 +732,6 @@ Denim Jacket, 18000, 15, Fashion`);
                 </button>
            </div>
            
-           {/* Tile Menu */}
            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mt-6">
              {menuItems.map(item => (
                <button 
@@ -739,6 +756,8 @@ Denim Jacket, 18000, 15, Fashion`);
                 if (!user.rentPaid) { alert("Rent must be confirmed."); return; }
                 if (!user.verification?.profilePictureUrl) { alert("Upload profile picture/logo first."); setActiveTab('compliance'); return; }
                 setShowBulkModal(true);
+                setBulkPreview([]);
+                setBulkCsvText('');
             }} className="flex-1 md:flex-none bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-4 md:px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled={!user.rentPaid}>
                Bulk Upload
             </button>
@@ -748,9 +767,75 @@ Denim Jacket, 18000, 15, Fashion`);
         </div>
       </div>
 
+      {activeTab === 'compliance' && (
+        <div className="max-w-2xl mx-auto space-y-8 animate-slide-up">
+           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+              <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Store Verification</h3>
+              
+              <div className="space-y-6">
+                 {/* Profile Picture */}
+                 <div className="flex items-center gap-6">
+                    <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden border-2 border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center relative group">
+                       {profilePicPreview ? (
+                          <img src={profilePicPreview} className="w-full h-full object-cover" alt="Profile" />
+                       ) : (
+                          <span className="text-2xl text-gray-400">📷</span>
+                       )}
+                       <input 
+                         type="file" 
+                         className="absolute inset-0 opacity-0 cursor-pointer" 
+                         accept="image/*"
+                         onChange={handleProfilePicSelect}
+                       />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Business Logo / Profile</p>
+                       <p className="text-xs text-gray-500 max-w-xs">Upload a clear logo or photo for your store profile.</p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Registration Number (CAC/Tax ID)</label>
+                    <input 
+                       value={cacDraft} 
+                       onChange={e => setCacDraft(e.target.value)} 
+                       className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none border border-gray-100 dark:border-slate-700" 
+                       placeholder="Enter Business Registration Number"
+                    />
+                 </div>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Government ID / Business License</label>
+                    <div className="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-2xl p-6 text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition">
+                       {docPreview ? (
+                          <div className="relative h-48 w-full">
+                             <img src={docPreview} className="w-full h-full object-contain" alt="Doc" />
+                             <button onClick={() => setDocPreview(null)} className="absolute top-2 right-2 bg-black/50 text-white p-2 rounded-full hover:bg-red-500">✕</button>
+                          </div>
+                       ) : (
+                          <label className="cursor-pointer block">
+                             <div className="text-4xl mb-2">📄</div>
+                             <p className="text-xs font-bold text-gray-500">Click to upload document</p>
+                             <p className="text-[9px] text-gray-400 mt-1 uppercase tracking-widest">Max 2MB • JPG/PNG/PDF</p>
+                             <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleIdentitySelect} />
+                          </label>
+                       )}
+                    </div>
+                 </div>
+
+                 <button 
+                    onClick={handleComplianceSubmit} 
+                    className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-700 transition"
+                 >
+                    Submit for Verification
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {activeTab === 'inventory' && (
         <div className="space-y-4 animate-slide-up">
-           {/* ... Inventory logic ... */}
            {filterLowStock && (
               <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl border border-red-100 dark:border-red-800">
                  <div className="flex items-center gap-2">
@@ -794,7 +879,6 @@ Denim Jacket, 18000, 15, Fashion`);
         </div>
       )}
 
-      {/* Orders Management Section */}
       {activeTab === 'orders' && (
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 overflow-hidden shadow-sm animate-slide-up">
            <div className="p-8 border-b border-gray-100 dark:border-slate-800">
@@ -832,7 +916,6 @@ Denim Jacket, 18000, 15, Fashion`);
                                 <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{user.currencySymbol || '₦'}{t.amount.toLocaleString()}</p>
                            </div>
                            
-                           {/* Buyer Details */}
                            <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl space-y-2 border border-gray-100 dark:border-slate-700">
                                 <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">Buyer Dossier</p>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -851,7 +934,6 @@ Denim Jacket, 18000, 15, Fashion`);
                                 </div>
                            </div>
 
-                           {/* Payment Proof / Method */}
                            <div className="flex items-center gap-4">
                                 <span className="text-[10px] font-black uppercase text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">{t.paymentMethod.replace('_', ' ')}</span>
                                 {t.proofOfPayment && (
@@ -868,7 +950,6 @@ Denim Jacket, 18000, 15, Fashion`);
                            </div>
                         </div>
 
-                        {/* Actions */}
                         {isPending && (
                             <div className="flex flex-col gap-2 min-w-[150px]">
                                 <button 
@@ -903,7 +984,6 @@ Denim Jacket, 18000, 15, Fashion`);
         </div>
       )}
 
-      {/* Reputation Tab */}
       {activeTab === 'reputation' && (
           <div className="space-y-8 animate-slide-up">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -945,71 +1025,186 @@ Denim Jacket, 18000, 15, Fashion`);
           </div>
       )}
       
-      {activeTab === 'analytics' && (<div className="space-y-8 animate-slide-up"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Gross Revenue</p><p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">{user.currencySymbol}{grossSales.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Earnings</p><p className="text-3xl font-black text-green-600 dark:text-green-400 mt-2">{user.currencySymbol}{netEarnings.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Commission Paid</p><p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{user.currencySymbol}{totalCommission.toLocaleString()}</p></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border dark:border-slate-800"><p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Orders Fulfilled</p><p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{myTransactions.length}</p></div></div></div>)}
+      {activeTab === 'analytics' && (
+        <div className="space-y-8 animate-slide-up">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Gross Revenue</p>
+                    <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">{user.currencySymbol}{grossSales.toLocaleString()}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Earnings</p>
+                    <p className="text-3xl font-black text-green-600 dark:text-green-400 mt-2">{user.currencySymbol}{netEarnings.toLocaleString()}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Commission Paid</p>
+                    <p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{user.currencySymbol}{totalCommission.toLocaleString()}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Orders Fulfilled</p>
+                    <p className="text-3xl font-black text-slate-900 dark:text-white mt-2">{myTransactions.length}</p>
+                </div>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                <h3 className="text-xl font-black uppercase tracking-tighter mb-4 dark:text-white">Traffic Analysis</h3>
+                <div className="h-48 flex items-center justify-center border-2 border-dashed border-gray-100 dark:border-slate-800 rounded-2xl">
+                    <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Graph Visualization Module Loading...</p>
+                </div>
+            </div>
+        </div>
+      )}
       
-      {activeTab === 'compliance' && (
+      {activeTab === 'finance' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
-           <div className="space-y-8">
-              <div className={`p-8 rounded-[2.5rem] border-2 border-dashed text-center ${isVerified ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                 <div className="text-4xl mb-4">{isVerified ? '✅' : '⚠️'}</div>
-                 <h3 className={`text-xl font-black uppercase tracking-tighter ${isVerified ? 'text-green-700' : 'text-amber-700'}`}>
-                    {isVerified ? 'Verification Complete' : 'Action Required'}
-                 </h3>
-                 <p className={`text-xs font-bold mt-2 ${isVerified ? 'text-green-600' : 'text-amber-600'}`}>
-                    {isVerified ? 'Your store is fully authorized on the global network.' : 'Upload required documents to prevent suspension.'}
-                 </p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6">
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Business Registration (CAC/EIN)</label>
-                    <input value={cacDraft} onChange={e => setCacDraft(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono outline-none" placeholder="RC-123456" />
-                 </div>
-                 
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Government ID / Passport</label>
-                    <input type="file" ref={identityDocRef} onChange={handleIdentitySelect} className="hidden" accept="image/*" />
-                    <div onClick={() => identityDocRef.current?.click()} className="w-full h-32 bg-gray-50 dark:bg-slate-800 rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition relative overflow-hidden">
-                       {docPreview ? (
-                          <img src={docPreview} className="absolute inset-0 w-full h-full object-cover" />
-                       ) : (
-                          <>
-                             <span className="text-2xl text-gray-300">📄</span>
-                             <span className="text-[9px] font-bold text-gray-400 uppercase mt-2">Click to Upload</span>
-                          </>
-                       )}
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Gateway Configuration</h3>
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Paystack Public Key</label>
+                        <input value={gatewayKeys.paystack} onChange={e => setGatewayKeys({...gatewayKeys, paystack: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono border border-gray-100 dark:border-slate-700 outline-none focus:border-indigo-500 transition" placeholder="pk_live_..." />
                     </div>
-                 </div>
-
-                 <button onClick={handleComplianceSubmit} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl">Submit for Audit</button>
-              </div>
-           </div>
-
-           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 h-fit">
-              <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Store Identity</h3>
-              <p className="text-[10px] font-black uppercase text-red-500 tracking-widest mb-4">* Required before trading</p>
-              <div className="flex flex-col items-center space-y-6">
-                 <div className="w-32 h-32 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center relative overflow-hidden group">
-                    {profilePicPreview ? (
-                       <img src={profilePicPreview} className="w-full h-full object-cover" />
-                    ) : (
-                       <span className="text-4xl text-gray-300">🏪</span>
-                    )}
-                    <div onClick={() => profilePicRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                       <span className="text-white text-[9px] font-black uppercase">Edit</span>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Flutterwave Key</label>
+                        <input value={gatewayKeys.flutterwave} onChange={e => setGatewayKeys({...gatewayKeys, flutterwave: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono border border-gray-100 dark:border-slate-700 outline-none focus:border-indigo-500 transition" placeholder="FLWPUBK_..." />
                     </div>
-                    <input type="file" ref={profilePicRef} onChange={handleProfilePicSelect} className="hidden" accept="image/*" />
-                 </div>
-                 <p className="text-xs text-gray-500 text-center px-4">This image appears on your store page and receipts. Use a high-res logo.</p>
-                 <button onClick={handleComplianceSubmit} className="bg-indigo-600 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase">Save Identity</button>
-              </div>
-           </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Stripe Public Key</label>
+                        <input value={gatewayKeys.stripe} onChange={e => setGatewayKeys({...gatewayKeys, stripe: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono border border-gray-100 dark:border-slate-700 outline-none focus:border-indigo-500 transition" placeholder="pk_test_..." />
+                    </div>
+                    <button onClick={handleUpdatePaymentKeys} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition shadow-lg">Save Keys</button>
+                </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm">
+                <h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Bank Payout Details</h3>
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Bank Name</label>
+                        <input value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 outline-none focus:border-indigo-500 transition" placeholder="e.g. Chase, Zenith" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Account Number</label>
+                        <input value={bankDetails.accountNumber} onChange={e => setBankDetails({...bankDetails, accountNumber: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono border border-gray-100 dark:border-slate-700 outline-none focus:border-indigo-500 transition" placeholder="0000000000" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Account Name</label>
+                        <input value={bankDetails.accountName} onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 outline-none focus:border-indigo-500 transition" placeholder="Legal Account Name" />
+                    </div>
+                    <button onClick={handleUpdatePaymentKeys} className="w-full bg-indigo-600 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition shadow-lg">Update Bank</button>
+                </div>
+            </div>
         </div>
       )}
 
-      {activeTab === 'finance' && (<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up"><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800"><h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Gateway Configuration</h3><div className="space-y-4"><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Paystack Public Key</label><input value={gatewayKeys.paystack} onChange={e => setGatewayKeys({...gatewayKeys, paystack: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono" placeholder="pk_live_..." /></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Flutterwave Key</label><input value={gatewayKeys.flutterwave} onChange={e => setGatewayKeys({...gatewayKeys, flutterwave: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono" placeholder="FLWPUBK_..." /></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Stripe Public Key</label><input value={gatewayKeys.stripe} onChange={e => setGatewayKeys({...gatewayKeys, stripe: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono" placeholder="pk_test_..." /></div><button onClick={handleUpdatePaymentKeys} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition">Save Keys</button></div></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800"><h3 className="text-xl font-black uppercase tracking-tighter mb-6 dark:text-white">Bank Payout Details</h3><div className="space-y-4"><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Bank Name</label><input value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold" placeholder="e.g. Chase, Zenith" /></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Account Number</label><input value={bankDetails.accountNumber} onChange={e => setBankDetails({...bankDetails, accountNumber: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-mono" placeholder="0000000000" /></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Account Name</label><input value={bankDetails.accountName} onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold" placeholder="Legal Account Name" /></div><button onClick={handleUpdatePaymentKeys} className="w-full bg-indigo-600 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Update Bank</button></div></div></div>)}
-      {activeTab === 'settings' && (<div className="max-w-3xl mx-auto space-y-8 animate-slide-up"><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6"><h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">General Configuration</h3><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Store Name</label><div className="flex gap-2"><input value={storeNameDraft} onChange={e => setStoreNameDraft(e.target.value)} className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none" /><button onClick={handleUpdateStore} className="px-6 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase">Save</button></div></div><div className="grid grid-cols-2 gap-4"><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Operating Region</label><select value={user.country || 'Nigeria'} onChange={e => handleCountryChange(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none cursor-pointer">{Object.keys(COUNTRY_CURRENCY_MAP).map(c => <option key={c} value={c}>{c}</option>)}</select></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Currency</label><div className="w-full p-4 bg-gray-100 dark:bg-slate-700 rounded-xl text-xs font-bold text-gray-500 cursor-not-allowed">{user.currency} ({user.currencySymbol})</div></div></div></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6"><h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">Payment Methods</h3><p className="text-xs text-gray-500">Enable methods you want to offer to buyers.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{PAYMENT_METHODS.map(m => (<button key={m.id} onClick={() => handleTogglePaymentMethod(m.id)} className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${user.enabledPaymentMethods?.includes(m.id) ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-100 dark:border-slate-700 opacity-60'}`}><div className="flex items-center gap-3"><span className="text-xl">{m.icon}</span><span className="text-[10px] font-black uppercase tracking-widest dark:text-white">{m.name}</span></div>{user.enabledPaymentMethods?.includes(m.id) && <span className="text-indigo-600 font-bold">✓</span>}</button>))}</div></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 flex justify-between items-center"><div><h3 className="text-sm font-black uppercase tracking-widest dark:text-white">Monthly Analytics Report</h3><p className="text-xs text-gray-500 mt-1">Receive PDF summaries via email.</p></div><button onClick={toggleMonthlyReport} className={`w-12 h-6 rounded-full p-1 transition-colors ${user.monthlyReportSubscribed ? 'bg-green-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${user.monthlyReportSubscribed ? 'translate-x-6' : ''}`}></div></button></div></div>)}
-      {activeTab === 'ai' && (<div className="max-w-2xl mx-auto space-y-8 animate-slide-up"><div className="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl text-center"><div className="text-4xl mb-4">🤖</div><h3 className="text-2xl font-black uppercase tracking-tighter">Your AI Agent</h3><p className="text-indigo-200 text-xs font-medium max-w-sm mx-auto mt-2">Customize how your automated support agent interacts with customers visiting your store.</p></div><div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border dark:border-slate-800 space-y-6"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Auto-Reply Status</span><button onClick={() => handleUpdateAI({ autoReplyEnabled: !user.aiConfig?.autoReplyEnabled })} className={`w-12 h-6 rounded-full p-1 transition-colors ${user.aiConfig?.autoReplyEnabled ? 'bg-green-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${user.aiConfig?.autoReplyEnabled ? 'translate-x-6' : ''}`}></div></button></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Greeting Message</label><input value={user.aiConfig?.greeting || ''} onChange={e => handleUpdateAI({ greeting: e.target.value })} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition" placeholder="Welcome to our store! How can I help?" /></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Agent Tone</label><div className="grid grid-cols-2 gap-3">{['professional', 'friendly', 'enthusiastic', 'minimalist'].map(t => (<button key={t} onClick={() => handleUpdateAI({ tone: t as any })} className={`p-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition ${user.aiConfig?.tone === t ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' : 'border-gray-100 dark:border-slate-800 text-gray-400'}`}>{t}</button>))}</div></div><div className="space-y-1"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Special Instructions</label><textarea value={user.aiConfig?.specialInstructions || ''} onChange={e => handleUpdateAI({ specialInstructions: e.target.value })} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-medium h-32 outline-none border-2 border-transparent focus:border-indigo-600 transition" placeholder="e.g. Always mention we offer free shipping on orders over $50. Be polite but brief." /></div></div></div>)}
+      {activeTab === 'settings' && (
+        <div className="max-w-3xl mx-auto space-y-8 animate-slide-up">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">General Configuration</h3>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Store Name</label>
+                    <div className="flex gap-2">
+                        <input value={storeNameDraft} onChange={e => setStoreNameDraft(e.target.value)} className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none border border-gray-100 dark:border-slate-700 focus:border-indigo-500 transition" />
+                        <button onClick={handleUpdateStore} className="px-6 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-indigo-700 transition">Save</button>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Operating Region</label>
+                        <select value={user.country || 'Nigeria'} onChange={e => handleCountryChange(e.target.value)} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none cursor-pointer border border-gray-100 dark:border-slate-700 focus:border-indigo-500 transition">
+                            {Object.keys(COUNTRY_CURRENCY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Currency</label>
+                        <div className="w-full p-4 bg-gray-100 dark:bg-slate-700 rounded-xl text-xs font-bold text-gray-500 cursor-not-allowed border border-transparent">
+                            {user.currency} ({user.currencySymbol})
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+               <h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">Category Management</h3>
+               <p className="text-xs text-gray-500">Add custom categories to the global marketplace list.</p>
+               <div className="flex gap-2">
+                  <input 
+                    value={newCategoryName} 
+                    onChange={e => setNewCategoryName(e.target.value)} 
+                    placeholder="New Category Name"
+                    className="flex-1 p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none border border-gray-100 dark:border-slate-700 focus:border-indigo-500 transition" 
+                  />
+                  <button onClick={handleAddCategory} className="px-6 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-xl text-[10px] font-black uppercase shadow-lg hover:scale-105 transition">Add</button>
+               </div>
+               <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => (
+                     <span key={cat} className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-gray-200 dark:border-slate-700">{cat}</span>
+                  ))}
+               </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tighter mb-2 dark:text-white">Payment Methods</h3>
+                <p className="text-xs text-gray-500">Enable methods you want to offer to buyers.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {PAYMENT_METHODS.map(m => (
+                        <button key={m.id} onClick={() => handleTogglePaymentMethod(m.id)} className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${user.enabledPaymentMethods?.includes(m.id) ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-100 dark:border-slate-700 opacity-60'}`}>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xl">{m.icon}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest dark:text-white">{m.name}</span>
+                            </div>
+                            {user.enabledPaymentMethods?.includes(m.id) && <span className="text-indigo-600 font-bold">✓</span>}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm flex justify-between items-center">
+                <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest dark:text-white">Monthly Analytics Report</h3>
+                    <p className="text-xs text-gray-500 mt-1">Receive PDF summaries via email.</p>
+                </div>
+                <button onClick={toggleMonthlyReport} className={`w-12 h-6 rounded-full p-1 transition-colors ${user.monthlyReportSubscribed ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${user.monthlyReportSubscribed ? 'translate-x-6' : ''}`}></div>
+                </button>
+            </div>
+        </div>
+      )}
+
+      {activeTab === 'ai' && (
+        <div className="max-w-2xl mx-auto space-y-8 animate-slide-up">
+            <div className="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl text-center">
+                <div className="text-4xl mb-4">🤖</div>
+                <h3 className="text-2xl font-black uppercase tracking-tighter">Your AI Agent</h3>
+                <p className="text-indigo-200 text-xs font-medium max-w-sm mx-auto mt-2">Customize how your automated support agent interacts with customers visiting your store.</p>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Auto-Reply Status</span>
+                    <button onClick={() => handleUpdateAI({ autoReplyEnabled: !user.aiConfig?.autoReplyEnabled })} className={`w-12 h-6 rounded-full p-1 transition-colors ${user.aiConfig?.autoReplyEnabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${user.aiConfig?.autoReplyEnabled ? 'translate-x-6' : ''}`}></div>
+                    </button>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Greeting Message</label>
+                    <input value={user.aiConfig?.greeting || ''} onChange={e => handleUpdateAI({ greeting: e.target.value })} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-bold outline-none border-2 border-transparent focus:border-indigo-600 transition" placeholder="Welcome to our store! How can I help?" />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Agent Tone</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        {['professional', 'friendly', 'enthusiastic', 'minimalist'].map(t => (
+                            <button key={t} onClick={() => handleUpdateAI({ tone: t as any })} className={`p-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition ${user.aiConfig?.tone === t ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' : 'border-gray-100 dark:border-slate-800 text-gray-400'}`}>
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Special Instructions</label>
+                    <textarea value={user.aiConfig?.specialInstructions || ''} onChange={e => handleUpdateAI({ specialInstructions: e.target.value })} className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl text-xs font-medium h-32 outline-none border-2 border-transparent focus:border-indigo-600 transition" placeholder="e.g. Always mention we offer free shipping on orders over $50. Be polite but brief." />
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Add/Edit Product Modal */}
       {showAddModal && (
@@ -1145,21 +1340,44 @@ Denim Jacket, 18000, 15, Fashion`);
       {showBulkModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl animate-fade-in">
            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-12 shadow-2xl relative border dark:border-slate-800 animate-slide-up">
-              <button onClick={() => setShowBulkModal(false)} className="absolute top-8 right-8 text-gray-400 hover:text-red-500">✕</button>
+              <button onClick={() => { setShowBulkModal(false); setBulkPreview([]); }} className="absolute top-8 right-8 text-gray-400 hover:text-red-500">✕</button>
               <h3 className="text-2xl font-black uppercase tracking-tighter mb-4 dark:text-white">Batch Inventory</h3>
-              <div className="space-y-6">
-                 <div className="flex justify-between items-end">
-                    <p className="text-xs text-gray-500 font-medium">Upload CSV data. Format: <br/><code className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">Name, Price, Stock, Category</code></p>
-                    <button onClick={loadSampleData} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-100 transition whitespace-nowrap">Generate Sample</button>
-                 </div>
-                 <textarea 
-                    value={bulkCsvText}
-                    onChange={e => setBulkCsvText(e.target.value)}
-                    placeholder="Wireless Headphones, 25000, 50, Electronics&#10;Leather Wallet, 5000, 100, Fashion"
-                    className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl outline-none font-mono text-xs h-48 border border-gray-200 dark:border-slate-700"
-                 />
-                 <button onClick={handleBulkUpload} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-105 transition">Process Batch</button>
-              </div>
+              
+              {bulkPreview.length === 0 ? (
+                <div className="space-y-6">
+                   <div className="flex justify-between items-end">
+                      <p className="text-xs text-gray-500 font-medium">Upload CSV data. Format: <br/><code className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">Name, Price, Stock, Category</code></p>
+                      <button onClick={loadSampleData} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-100 transition whitespace-nowrap">Generate Sample</button>
+                   </div>
+                   <textarea 
+                      value={bulkCsvText}
+                      onChange={e => setBulkCsvText(e.target.value)}
+                      placeholder="Wireless Headphones, 25000, 50, Electronics&#10;Leather Wallet, 5000, 100, Fashion"
+                      className="w-full p-4 bg-gray-50 dark:bg-slate-800 dark:text-white rounded-xl outline-none font-mono text-xs h-48 border border-gray-200 dark:border-slate-700"
+                   />
+                   <button onClick={handleParseBulk} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-105 transition">Preview Batch</button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
+                      <p className="text-green-700 dark:text-green-400 font-bold text-xs flex items-center gap-2">
+                         <span className="text-lg">✓</span> {bulkPreview.length} Items ready for deployment
+                      </p>
+                   </div>
+                   <div className="max-h-60 overflow-y-auto no-scrollbar space-y-2 border-t border-b border-gray-100 dark:border-slate-800 py-4">
+                      {bulkPreview.map((item, idx) => (
+                         <div key={idx} className="flex justify-between items-center text-xs p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded">
+                            <span className="font-bold dark:text-white truncate max-w-[60%]">{item.name}</span>
+                            <span className="text-gray-500">{item.currencySymbol}{item.price} (x{item.stock})</span>
+                         </div>
+                      ))}
+                   </div>
+                   <div className="flex gap-4">
+                      <button onClick={() => setBulkPreview([])} className="flex-1 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-300 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 dark:hover:bg-slate-700">Back to Edit</button>
+                      <button onClick={handleUploadLive} className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-700 animate-pulse">Upload Live</button>
+                   </div>
+                </div>
+              )}
            </div>
         </div>
       )}

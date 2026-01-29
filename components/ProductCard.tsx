@@ -24,6 +24,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   
   // Gallery state
   const gallery = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.imageUrl];
+  const hasVideo = !!product.videoUrl;
+  // Total slides includes images + video if present
+  const totalSlides = gallery.length + (hasVideo ? 1 : 0);
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | undefined>(product.sizes?.[0]);
   const [quantity, setQuantity] = useState(1);
@@ -31,19 +35,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const currency = product.currencySymbol || '₦';
   
-  const hasVideo = !!product.videoUrl;
-
-  // Auto-slide logic for gallery if no video is playing/interacting? 
-  // Let's keep it manual for now to avoid complexity with video
-  
   const nextImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % gallery.length);
+    setCurrentImageIndex((prev) => (prev + 1) % totalSlides);
   };
 
   const prevImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
+    setCurrentImageIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
   };
 
   const handleAddToCart = () => {
@@ -51,15 +50,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       alert("Please select a size first");
       return;
     }
+    // Use the first image as the selected image url even if video is currently showing
+    const imageToUse = currentImageIndex < gallery.length ? gallery[currentImageIndex] : gallery[0];
+    
     onAddToCart?.({
       ...product,
       selectedSize,
-      selectedImageUrl: gallery[currentImageIndex],
+      selectedImageUrl: imageToUse,
       quantity: quantity
     });
     setShowModal(false);
     setQuantity(1);
   };
+
+  const isVideoSlide = hasVideo && currentImageIndex === gallery.length;
 
   return (
     <>
@@ -69,6 +73,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       >
         <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-slate-800">
           <img src={product.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt={product.name} />
+          {hasVideo && (
+             <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white p-1.5 rounded-full">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+             </div>
+          )}
           {showWishlistBtn && onToggleWishlist && (
             <button 
               onClick={(e) => { e.stopPropagation(); onToggleWishlist(product.id); }}
@@ -115,48 +124,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </button>
 
             {/* MEDIA SECTION */}
-            <div className={`md:w-1/2 relative bg-gray-100 dark:bg-slate-800 flex flex-col md:flex-row ${hasVideo ? 'gap-1' : ''}`}>
-               {/* IMAGE SLIDER */}
-               <div className={`relative ${hasVideo ? 'md:w-3/5 h-64 md:h-auto' : 'w-full h-64 md:h-auto'} overflow-hidden group`}>
-                   <img src={gallery[currentImageIndex]} className="w-full h-full object-cover" alt="" />
+            <div className="md:w-1/2 relative bg-black flex items-center justify-center h-96 md:h-auto min-h-[400px]">
+               {/* Slide Content */}
+               <div className="w-full h-full relative group">
+                   {isVideoSlide ? (
+                       <div className="w-full h-full flex items-center justify-center bg-black">
+                           <video 
+                                ref={videoRef}
+                                src={product.videoUrl} 
+                                className="w-full h-full object-contain" 
+                                controls
+                                autoPlay
+                                playsInline
+                            />
+                            <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest pointer-events-none opacity-80 z-10">
+                                Product Video
+                            </div>
+                       </div>
+                   ) : (
+                       <img src={gallery[currentImageIndex]} className="w-full h-full object-contain" alt="" />
+                   )}
                    
                    {/* Arrows */}
-                   {gallery.length > 1 && (
+                   {totalSlides > 1 && (
                      <>
-                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         </button>
-                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                         </button>
                      </>
                    )}
 
                    {/* Dots */}
-                   {gallery.length > 1 && (
-                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                        {gallery.map((_, i) => (
-                            <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'}`} />
+                   {totalSlides > 1 && (
+                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                        {Array.from({ length: totalSlides }).map((_, i) => (
+                            <button 
+                                key={i} 
+                                onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(i); }}
+                                className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white scale-150' : 'bg-white/40 hover:bg-white/60'}`} 
+                            />
                         ))}
                      </div>
                    )}
                </div>
-
-               {/* VIDEO SECTION (Side by side if present) */}
-               {hasVideo && (
-                 <div className="md:w-2/5 h-48 md:h-auto bg-black border-l border-white/10 relative group">
-                    <video 
-                        ref={videoRef}
-                        src={product.videoUrl} 
-                        className="w-full h-full object-cover" 
-                        controls
-                        playsInline
-                    />
-                    <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest pointer-events-none opacity-80">
-                        Live Feed
-                    </div>
-                 </div>
-               )}
             </div>
 
             {/* DETAILS SECTION */}
@@ -183,6 +196,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                        <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center font-black">+</button>
                     </div>
                   </div>
+
+                  {/* Thumbnail Strip if multiple slides */}
+                  {totalSlides > 1 && (
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                          {gallery.map((img, i) => (
+                              <button 
+                                key={i} 
+                                onClick={() => setCurrentImageIndex(i)}
+                                className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all ${currentImageIndex === i ? 'border-indigo-600 opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                              >
+                                  <img src={img} className="w-full h-full object-cover" />
+                              </button>
+                          ))}
+                          {hasVideo && (
+                              <button 
+                                onClick={() => setCurrentImageIndex(gallery.length)}
+                                className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 flex items-center justify-center bg-black transition-all ${currentImageIndex === gallery.length ? 'border-indigo-600 opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                              >
+                                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                              </button>
+                          )}
+                      </div>
+                  )}
 
                   <div className="bg-gray-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] space-y-6">
                     <button 
