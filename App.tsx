@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Product, Store, CartItem, Transaction, Dispute, Review, Message, UserRole, AIConfig, DisputeStatus, SiteConfig, VisitorLog, SellerRecommendation } from './types';
 import { CATEGORIES, MOCK_PRODUCTS, MOCK_STORES } from './constants';
@@ -19,8 +20,8 @@ import { ServicesView } from './views/ServicesView';
 import { ChatSupport } from './components/ChatSupport';
 
 // Firebase Imports
-import { db } from './firebase';
 import { 
+  db,
   collection, 
   onSnapshot, 
   doc, 
@@ -31,7 +32,7 @@ import {
   query,
   orderBy,
   arrayUnion
-} from 'firebase/firestore';
+} from './firebase';
 
 // Helper to sanitize data for Firestore (removes undefined values which cause crashes)
 const stripUndefined = (obj: any) => {

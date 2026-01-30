@@ -1,10 +1,22 @@
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  writeBatch, 
+  query, 
+  orderBy, 
+  where, 
+  limit, 
+  arrayUnion 
+} from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getAnalytics } from 'firebase/analytics';
 
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-
-// Omni Marketplace Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA6_Yj9aD9gzuP-Ye6YqofO6mX-ilhVi-U",
   authDomain: "omni-marketplace-c34ab.firebaseapp.com",
@@ -18,17 +30,40 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Analytics conditionally to avoid "API Key not valid" errors during dev/test if not fully configured
+// Initialize Services
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// Analytics (Safe initialization)
 let analytics;
-try {
-  analytics = getAnalytics(app);
-} catch (error) {
-  console.warn("Firebase Analytics failed to initialize. This is often due to API key restrictions or environment setup. Proceeding without Analytics.", error);
+if (typeof window !== 'undefined') {
+  try {
+    analytics = getAnalytics(app);
+  } catch (e) {
+    console.log("Analytics not supported in this environment");
+  }
 }
 
-// Initialize Services
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+// Export services and functions to match the app's structure
+export { 
+  db, 
+  storage, 
+  analytics,
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  writeBatch, 
+  query, 
+  orderBy, 
+  where, 
+  limit, 
+  arrayUnion,
+  ref,
+  uploadBytes,
+  getDownloadURL
+};
 
-export { analytics };
 export default app;

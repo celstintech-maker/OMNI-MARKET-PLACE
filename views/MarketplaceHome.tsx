@@ -65,15 +65,17 @@ const BannerTiles = ({ banners, config }: { banners: string[], config: SiteConfi
 
   // Initialize display
   useEffect(() => {
-    if (banners.length > 0) {
-      // Pick up to 3 initially
+    if (banners && banners.length > 0) {
+      // Always ensure we have content to display
       setDisplayBanners(banners.slice(0, 3));
+    } else {
+        setDisplayBanners([]);
     }
   }, [banners]);
 
   // Shuffling Logic
   useEffect(() => {
-    if (banners.length <= 3) return; // No need to shuffle if we fit all
+    if (!banners || banners.length <= 3) return; // No need to shuffle if we fit all
 
     const interval = setInterval(() => {
       setIsTransitioning(true);
@@ -110,7 +112,8 @@ const BannerTiles = ({ banners, config }: { banners: string[], config: SiteConfi
         <div className={`grid grid-cols-1 ${displayBanners.length > 1 ? 'md:grid-cols-2' : ''} ${displayBanners.length > 2 ? 'lg:grid-cols-3' : ''} gap-4 sm:gap-6`}>
           {displayBanners.map((banner, index) => (
             <div
-              key={`${banner}-${index}`} // Composite key to force animation reset on change if needed, or stable index
+              // Use index in key to prevent re-rendering issues with massive base64 strings if shuffled to same position
+              key={`banner-${index}`} 
               onClick={() => setSelectedBanner(banner)}
               className={`
                 relative w-full aspect-[21/9] sm:aspect-[16/9] md:aspect-[3/2] rounded-[2.5rem] overflow-hidden shadow-2xl 
