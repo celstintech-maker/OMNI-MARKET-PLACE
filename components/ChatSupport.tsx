@@ -196,17 +196,30 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
     } catch (error: any) {
       console.error(error);
       const errorMessage = error.message || error.toString();
-      let replyText = "I apologize, but I am unable to process your request at this moment. Please try again later.";
       
-      // Graceful error for Rate Limits
+      // Default to busy
+      let replyText = "I apologize, but I am unable to process your request at this moment. Please try again later.";
+      let senderName = 'System';
+
+      // Graceful handling for Rate Limits / Quota -> Auto Handoff
       if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
-          replyText = "⚠️ I'm currently overwhelmed with requests due to high traffic. Please give me about 20-30 seconds to cool down and try asking again.";
+          const { storeId, name: storeName } = getChannelInfo(channelId);
+          
+          if (storeId && onNotifySeller) {
+              // Notify seller of incoming chat waiting
+              onNotifySeller(storeId, `🔔 Message Alert: ${activeUser.name} is waiting for a manual reply. (AI Capacity Reached)`);
+              
+              replyText = `We have notified ${storeName} staff to attend to you personally. Please stand by for a human agent.`;
+              senderName = 'System (Handoff)';
+          } else {
+              replyText = "Our AI agents are currently at capacity. A human admin has been notified of your inquiry.";
+          }
       }
 
       onSendMessage?.(channelId, {
         id: `ai-err-${Date.now()}`,
         senderId: 'ai-agent',
-        senderName: 'System (Busy)',
+        senderName: senderName,
         text: replyText,
         timestamp: Date.now()
       });
@@ -407,7 +420,7 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
                     ${msg.senderId === activeUser.id 
                       ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg' 
                       : msg.senderId === 'ai-agent' && msg.id.includes('err')
-                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900 rounded-tl-none shadow-sm'
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 rounded-tl-none shadow-sm'
                         : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
                     }
                   `}>
