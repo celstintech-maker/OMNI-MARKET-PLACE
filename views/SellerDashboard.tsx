@@ -99,6 +99,9 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const totalCommission = grossSales * adminConfig.commissionRate;
   const totalTax = adminConfig.taxEnabled ? grossSales * adminConfig.taxRate : 0;
   const netEarnings = grossSales - totalCommission - totalTax;
+  
+  // Construct Store URL
+  const storeUrl = `${window.location.origin}/#/store/${encodeURIComponent(user.storeName || '')}`;
 
   // Timer Effect
   useEffect(() => {
@@ -238,8 +241,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/#/store/${encodeURIComponent(user.storeName || '')}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(storeUrl);
     setUrlCopied(true);
     setTimeout(() => setUrlCopied(false), 2000);
   };
@@ -709,9 +711,9 @@ Denim Jacket, 18000, 15, Fashion`);
                 <p className="text-xs font-bold text-gray-400 flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                     Live URL: 
-                    <span className="text-indigo-600 dark:text-indigo-400 select-all">
-                        {window.location.host}/#/store/{encodeURIComponent(user.storeName || '')}
-                    </span>
+                    <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline select-all">
+                        {storeUrl}
+                    </a>
                 </p>
                 <button 
                     onClick={handleCopyLink}
@@ -749,6 +751,9 @@ Denim Jacket, 18000, 15, Fashion`);
            </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto self-end">
+            <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="hidden md:flex items-center justify-center bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-slate-700 px-4 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-sm">
+                <span className="mr-2">↗</span> Visit Store
+            </a>
             <button onClick={handleGenerateMockProducts} className="hidden md:block bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 px-4 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-slate-700 transition disabled:opacity-50" disabled={!user.rentPaid} title="Dev Tool: Fill Store">
                +50 Auto
             </button>
