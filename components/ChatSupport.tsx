@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, Message, UserRole, Store, SiteConfig } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -86,14 +87,15 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   };
 
   const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
-    const effectiveKey = process.env.API_KEY;
+    // Prioritize global config key (User entered), fall back to Env var
+    const effectiveKey = config?.geminiApiKey || process.env.API_KEY;
     
     if (!effectiveKey) {
       onSendMessage?.(channelId, {
         id: `ai-err-${Date.now()}`,
         senderId: 'ai-agent',
         senderName: 'System',
-        text: "System Alert: AI Agent offline. API Key configuration missing on server or admin settings.",
+        text: "System Alert: AI Agent offline. API Key configuration missing in Admin Settings.",
         timestamp: Date.now()
       });
       return;
@@ -148,7 +150,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
         id: `ai-err-${Date.now()}`,
         senderId: 'ai-agent',
         senderName: 'System',
-        text: `Agent Error: ${errorMsg}. Check Admin Settings.`,
+        text: `Agent Error: ${errorMsg}. Check Admin Settings Key validity.`,
         timestamp: Date.now()
       });
     } finally {

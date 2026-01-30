@@ -283,26 +283,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ stores, onLogin, initialIsRe
             <button type="button" onClick={() => alert("Contact support for PIN recovery.")} className="text-[9px] font-black uppercase text-gray-400 hover:text-indigo-600 tracking-widest">Forgotten PIN?</button>
           </div>
         )}
-
-        <div className="border-t dark:border-slate-800 pt-6">
-          <p className="text-[8px] text-center text-gray-400 mb-4 uppercase font-black tracking-[0.4em]">Demo Access</p>
-          <div className="flex flex-wrap gap-2 justify-center">
-             <button 
-               type="button" 
-               onClick={() => onLogin('admin@omni.com', UserRole.ADMIN, '6561')} 
-               className="text-[9px] px-4 py-2 bg-slate-900 text-white rounded-full font-black border border-transparent transition hover:scale-105"
-             >
-               ADMIN: 6561
-             </button>
-             <button 
-               type="button" 
-               onClick={() => onLogin('seller@tech.com', UserRole.SELLER, '0000', 'TechHub')} 
-               className="text-[9px] px-4 py-2 bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-full font-black border border-indigo-100 dark:border-slate-700 transition hover:scale-105"
-             >
-               SELLER: 0000
-             </button>
-          </div>
-        </div>
       </form>
     </div>
   );

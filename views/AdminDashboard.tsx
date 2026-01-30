@@ -778,6 +778,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                            )}
                        </div>
 
+                       {/* Transaction Activity Log */}
+                       <div className="space-y-4">
+                           <h4 className="text-xl font-black uppercase tracking-tighter dark:text-white">Activity Log</h4>
+                           <div className="max-h-48 overflow-y-auto no-scrollbar bg-gray-50 dark:bg-slate-800 p-4 rounded-[2rem] border border-gray-100 dark:border-slate-700 space-y-2">
+                               {transactions.filter(t => t.buyerId === selectedUser.id || t.sellerId === selectedUser.id).length === 0 ? (
+                                   <p className="text-center text-xs text-gray-400 font-medium py-4">No transaction history found.</p>
+                               ) : (
+                                   transactions.filter(t => t.buyerId === selectedUser.id || t.sellerId === selectedUser.id)
+                                   .sort((a,b) => b.timestamp - a.timestamp)
+                                   .map(t => (
+                                       <div key={t.id} className="flex justify-between items-center p-3 bg-white dark:bg-slate-900 rounded-xl">
+                                           <div>
+                                               <p className="text-[10px] font-black uppercase dark:text-white">{t.productName}</p>
+                                               <p className="text-[9px] text-gray-500">{t.id} • {t.status}</p>
+                                           </div>
+                                           <div className="text-right">
+                                               <p className={`text-xs font-bold ${t.sellerId === selectedUser.id ? 'text-green-500' : 'text-indigo-500'}`}>
+                                                   {t.sellerId === selectedUser.id ? '+' : '-'}{t.currencySymbol}{t.amount.toLocaleString()}
+                                               </p>
+                                               <p className="text-[8px] text-gray-400">{new Date(t.timestamp).toLocaleDateString()}</p>
+                                           </div>
+                                       </div>
+                                   ))
+                               )}
+                           </div>
+                       </div>
+
                        {selectedUser.role === UserRole.SELLER && (
                            <div className="space-y-4">
                                <h4 className="text-xl font-black uppercase tracking-tighter dark:text-white">Verification Documents</h4>
