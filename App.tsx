@@ -33,7 +33,10 @@ import {
 } from 'firebase/firestore';
 
 // Helper to sanitize data for Firestore (removes undefined values which cause crashes)
-const stripUndefined = (obj: any) => JSON.parse(JSON.stringify(obj));
+const stripUndefined = (obj: any) => {
+  if (obj === undefined || obj === null) return obj;
+  return JSON.parse(JSON.stringify(obj));
+};
 
 const INITIAL_CONFIG: SiteConfig = {
   siteName: 'OMNI MARKET',

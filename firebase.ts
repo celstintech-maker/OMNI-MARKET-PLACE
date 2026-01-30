@@ -17,7 +17,14 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Initialize Analytics conditionally to avoid "API Key not valid" errors during dev/test if not fully configured
+let analytics;
+try {
+  analytics = getAnalytics(app);
+} catch (error) {
+  console.warn("Firebase Analytics failed to initialize. This is often due to API key restrictions or environment setup. Proceeding without Analytics.", error);
+}
 
 // Initialize Services
 export const db = getFirestore(app);
