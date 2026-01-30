@@ -107,7 +107,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (e: any) {
       console.error("AI Error:", e);
       const errorMessage = e.message || e.toString();
-      setAiOutput(`Connection Failed.\n\nError: ${errorMessage}\n\nPlease verify the API Key in Settings.`);
+      
+      if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+          setAiOutput("⚠️ **System Overload (Rate Limit Reached)**\n\nThe AI service is currently experiencing high traffic on the Free Tier.\n\n👉 Please wait 20-30 seconds before retrying.\n👉 Upgrade your API Key in Settings to a paid tier for higher limits.");
+      } else {
+          setAiOutput(`Connection Failed.\n\nError: ${errorMessage}\n\nPlease verify the API Key in Settings.`);
+      }
     } finally {
       setAiLoading(false);
     }

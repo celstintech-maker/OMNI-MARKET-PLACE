@@ -195,6 +195,21 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
 
     } catch (error: any) {
       console.error(error);
+      const errorMessage = error.message || error.toString();
+      let replyText = "I apologize, but I am unable to process your request at this moment. Please try again later.";
+      
+      // Graceful error for Rate Limits
+      if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+          replyText = "⚠️ I'm currently overwhelmed with requests due to high traffic. Please give me about 20-30 seconds to cool down and try asking again.";
+      }
+
+      onSendMessage?.(channelId, {
+        id: `ai-err-${Date.now()}`,
+        senderId: 'ai-agent',
+        senderName: 'System (Busy)',
+        text: replyText,
+        timestamp: Date.now()
+      });
     } finally {
       setIsThinking(false);
     }
