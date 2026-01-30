@@ -29,7 +29,8 @@ import {
   deleteDoc, 
   writeBatch,
   query,
-  orderBy
+  orderBy,
+  arrayUnion
 } from 'firebase/firestore';
 
 // Helper to sanitize data for Firestore (removes undefined values which cause crashes)
@@ -111,6 +112,7 @@ function App() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [sellerRecommendations, setSellerRecommendations] = useState<SellerRecommendation[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [channelStatus, setChannelStatus] = useState<Record<string, { aiDisabled: boolean }>>({});
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_CONFIG);
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
   const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
@@ -193,10 +195,15 @@ function App() {
     // 10. Messages (Listen to all channels)
     const unsubMsgs = onSnapshot(collection(db, 'channels'), (snap) => {
         const msgs: Record<string, Message[]> = {};
+        const statuses: Record<string, { aiDisabled: boolean }> = {};
+        
         snap.docs.forEach(d => {
-            msgs[d.id] = d.data().messages || [];
+            const data = d.data();
+            msgs[d.id] = data.messages || [];
+            statuses[d.id] = { aiDisabled: !!data.aiDisabled };
         });
         setMessages(msgs);
+        setChannelStatus(statuses);
     });
 
     // 11. Visitor Logs
@@ -288,11 +295,8 @@ function App() {
   };
 
   const handleSendMessage = async (channelId: string, msg: Message) => {
-      // NOTE: We rely on Firestore's latency compensation (onSnapshot) to update the UI immediately for local writes.
-      // Manually setting state here can cause flicker/race conditions if the snapshot fires with old data before server sync.
-      const currentMsgs = messages[channelId] || [];
       try {
-        await setDoc(doc(db, 'channels', channelId), { messages: [...currentMsgs, stripUndefined(msg)] }, { merge: true });
+        await setDoc(doc(db, 'channels', channelId), { messages: arrayUnion(stripUndefined(msg)) }, { merge: true });
       } catch (e) {
         console.error("Failed to send message", e);
       }
@@ -301,12 +305,19 @@ function App() {
   const handleClearChat = async (channelId: string) => {
       // Deletes the chat document entirely
       await deleteDoc(doc(db, 'channels', channelId));
-      // Local clean up is handled by snapshot listener
   };
 
   const handleArchiveChat = async (channelId: string) => {
       // Clears messages but keeps channel
       await updateDoc(doc(db, 'channels', channelId), { messages: [] });
+  };
+
+  const handleToggleAI = async (channelId: string, disabled: boolean) => {
+      try {
+          await setDoc(doc(db, 'channels', channelId), { aiDisabled: disabled }, { merge: true });
+      } catch (e) {
+          console.error("Failed to toggle AI", e);
+      }
   };
 
   const handleNotifySeller = (storeId: string, msg: string) => {
@@ -787,9 +798,11 @@ function App() {
         stores={stores}
         products={products}
         globalMessages={messages}
+        channelStatus={channelStatus}
         onSendMessage={handleSendMessage}
         onClearChat={handleClearChat}
         onArchiveChat={handleArchiveChat}
+        onToggleAI={handleToggleAI}
         onNotifySeller={handleNotifySeller}
         theme={theme}
         config={siteConfig}

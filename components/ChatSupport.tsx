@@ -9,9 +9,11 @@ interface ChatSupportProps {
   stores?: Store[];
   products?: Product[];
   globalMessages?: Record<string, Message[]>;
+  channelStatus?: Record<string, { aiDisabled: boolean }>;
   onSendMessage?: (channelId: string, message: Message) => void;
   onClearChat?: (channelId: string) => void;
   onArchiveChat?: (channelId: string) => void;
+  onToggleAI?: (channelId: string, disabled: boolean) => void;
   onNotifySeller?: (storeId: string, message: string) => void;
   theme: 'light' | 'dark';
   isEmbedded?: boolean;
@@ -26,9 +28,11 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
   stores = [], 
   products = [],
   globalMessages = {}, 
+  channelStatus = {},
   onSendMessage, 
   onClearChat,
   onArchiveChat,
+  onToggleAI,
   onNotifySeller,
   theme, 
   isEmbedded = false,
@@ -83,6 +87,7 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
 
   const currentChannelInfo = selectedChannel ? getChannelInfo(selectedChannel) : null;
   const messages = selectedChannel ? (globalMessages[selectedChannel] || []) : [];
+  const isAiDisabled = selectedChannel ? channelStatus[selectedChannel]?.aiDisabled : false;
 
   const availableChannels = useMemo(() => {
     if (activeUser.role === UserRole.ADMIN) {
@@ -183,6 +188,8 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
       // Notify seller if AI signals handoff
       if (aiResponseText.includes("I have notified the human agent") && storeId && onNotifySeller) {
           onNotifySeller(storeId, `URGENT: Customer ${activeUser.name} requested human support in ${name}.`);
+          // Auto disable AI if explicit handoff requested by user
+          onToggleAI?.(channelId, true);
       }
       
       onSendMessage?.(channelId, {
@@ -197,7 +204,6 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
       console.error(error);
       const errorMessage = error.message || error.toString();
       
-      // Default to busy
       let replyText = "I apologize, but I am unable to process your request at this moment. Please try again later.";
       let senderName = 'System';
 
@@ -205,10 +211,11 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
       if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
           const { storeId, name: storeName } = getChannelInfo(channelId);
           
+          // Disable AI for this channel to prevent further 429s/loops
+          if (onToggleAI) onToggleAI(channelId, true);
+
           if (storeId && onNotifySeller) {
-              // Notify seller of incoming chat waiting
               onNotifySeller(storeId, `🔔 Message Alert: ${activeUser.name} is waiting for a manual reply. (AI Capacity Reached)`);
-              
               replyText = `We have notified ${storeName} staff to attend to you personally. Please stand by for a human agent.`;
               senderName = 'System (Handoff)';
           } else {
@@ -250,9 +257,20 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
     setInput('');
     setAttachment(null);
     
-    // Trigger AI response
-    if (activeUser.role === UserRole.BUYER || activeUser.role === UserRole.ADMIN) {
-       handleAIService(textToSend || (attachmentToSend ? "Analyze this image." : ""), attachmentToSend, selectedChannel);
+    // Logic for AI interaction
+    const isSellerOrAdmin = activeUser.role === UserRole.SELLER || activeUser.role === UserRole.ADMIN;
+    
+    if (isSellerOrAdmin) {
+       // If Seller/Admin replies manually, DISABLE AI for this chat to prevent it from interfering
+       if (!isAiDisabled && onToggleAI) {
+           onToggleAI(selectedChannel, true);
+       }
+    } else {
+       // If Buyer replies and AI is NOT disabled, trigger AI
+       // Also check if channel is disabled (manual override by seller)
+       if (!isAiDisabled) {
+           handleAIService(textToSend || (attachmentToSend ? "Analyze this image." : ""), attachmentToSend, selectedChannel);
+       }
     }
   };
 
@@ -286,16 +304,30 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
                 {currentChannelInfo ? currentChannelInfo.name : (activeUser.role === UserRole.BUYER ? 'Support Hub' : 'Incoming Chats')}
             </h3>
             <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-indigo-200 mt-1 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-              Live Network
+              <span className={`w-1.5 h-1.5 rounded-full ${selectedChannel && isAiDisabled ? 'bg-amber-400' : 'bg-green-400 animate-pulse'}`}></span>
+              {selectedChannel && isAiDisabled ? 'Manual Mode' : 'AI Active'}
             </p>
           </div>
         </div>
-        {!isEmbedded && (
-          <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/20 rounded-xl transition -mr-2">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        )}
+        
+        <div className="flex items-center gap-1">
+            {/* AI Toggle for Seller/Admin */}
+            {selectedChannel && (activeUser.role === UserRole.SELLER || activeUser.role === UserRole.ADMIN) && (
+                <button 
+                    onClick={() => onToggleAI?.(selectedChannel, !isAiDisabled)}
+                    className={`p-2 rounded-lg text-[9px] font-black uppercase transition border ${isAiDisabled ? 'bg-amber-500 border-amber-400 text-white' : 'bg-white/20 border-white/30 text-white hover:bg-white/30'}`}
+                    title={isAiDisabled ? "Enable AI" : "Disable AI"}
+                >
+                    {isAiDisabled ? "AI: OFF" : "AI: ON"}
+                </button>
+            )}
+            
+            {!isEmbedded && (
+            <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/20 rounded-xl transition -mr-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            )}
+        </div>
       </div>
 
       {!selectedChannel ? (
@@ -358,14 +390,16 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
                    ) : (
                        availableChannels.map(cid => {
                            const info = getChannelInfo(cid);
+                           const isDisabled = channelStatus[cid]?.aiDisabled;
                            return (
                                <button 
                                    key={cid}
                                    onClick={() => setSelectedChannel(cid)}
                                    className="w-full flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm relative group"
                                >
-                                   <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center font-black text-indigo-600">
+                                   <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center font-black text-indigo-600 relative">
                                        {info.name[0]}
+                                       {isDisabled && <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-amber-500 border-2 border-white rounded-full" title="AI Disabled"></span>}
                                    </div>
                                    <div className="flex-1 min-w-0">
                                        <p className="font-black text-xs uppercase truncate dark:text-white">{info.name}</p>
@@ -484,7 +518,7 @@ const ChatSupportBase: React.FC<ChatSupportProps> = ({
                 type="text" 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your inquiry..."
+                placeholder={isAiDisabled ? "Reply manually as human agent..." : "Type your inquiry..."}
                 className="flex-1 bg-gray-100 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-3 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all font-medium"
                 />
                 <button 
