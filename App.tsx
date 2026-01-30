@@ -32,6 +32,9 @@ import {
   orderBy
 } from 'firebase/firestore';
 
+// Helper to sanitize data for Firestore (removes undefined values which cause crashes)
+const stripUndefined = (obj: any) => JSON.parse(JSON.stringify(obj));
+
 const INITIAL_CONFIG: SiteConfig = {
   siteName: 'OMNI MARKET',
   logoUrl: '',
@@ -121,7 +124,7 @@ function App() {
         setUsers(data);
         // Initial Seed if empty
         if (data.length === 0) {
-            INITIAL_USERS.forEach(u => setDoc(doc(db, 'users', u.id), u));
+            INITIAL_USERS.forEach(u => setDoc(doc(db, 'users', u.id), stripUndefined(u)));
         }
     });
 
@@ -131,7 +134,7 @@ function App() {
         setProducts(data);
         // Initial Seed if empty
         if (data.length === 0) {
-            MOCK_PRODUCTS.forEach(p => setDoc(doc(db, 'products', p.id), p));
+            MOCK_PRODUCTS.forEach(p => setDoc(doc(db, 'products', p.id), stripUndefined(p)));
         }
     });
 
@@ -140,7 +143,7 @@ function App() {
         const data = snap.docs.map(d => d.data() as Store);
         setStores(data);
         if (data.length === 0) {
-            MOCK_STORES.forEach(s => setDoc(doc(db, 'stores', s.id), s));
+            MOCK_STORES.forEach(s => setDoc(doc(db, 'stores', s.id), stripUndefined(s)));
         }
     });
 
@@ -169,7 +172,7 @@ function App() {
         if (snap.exists()) {
             setSiteConfig(snap.data() as SiteConfig);
         } else {
-            setDoc(doc(db, 'settings', 'config'), INITIAL_CONFIG);
+            setDoc(doc(db, 'settings', 'config'), stripUndefined(INITIAL_CONFIG));
         }
     });
 
@@ -214,7 +217,7 @@ function App() {
 
   const handleUpdateUser = async (updatedUser: User) => {
     try {
-        await setDoc(doc(db, 'users', updatedUser.id), updatedUser, { merge: true });
+        await setDoc(doc(db, 'users', updatedUser.id), stripUndefined(updatedUser), { merge: true });
     } catch (e) {
         console.error("Error updating user:", e);
         alert("Failed to update user profile. Check connection.");
@@ -223,7 +226,7 @@ function App() {
 
   const handleAddProduct = async (product: Product) => {
     try {
-        await setDoc(doc(db, 'products', product.id), product);
+        await setDoc(doc(db, 'products', product.id), stripUndefined(product));
     } catch (e) {
         console.error("Error adding product:", e);
     }
@@ -241,29 +244,29 @@ function App() {
       const batch = writeBatch(db);
       products.forEach(p => {
           const ref = doc(db, 'products', p.id);
-          batch.set(ref, p);
+          batch.set(ref, stripUndefined(p));
       });
       await batch.commit();
   };
 
   const handleUpdateTransaction = async (tx: Transaction) => {
-      await setDoc(doc(db, 'transactions', tx.id), tx, { merge: true });
+      await setDoc(doc(db, 'transactions', tx.id), stripUndefined(tx), { merge: true });
   };
 
   const handleUpdateDispute = async (d: Dispute) => {
-      await setDoc(doc(db, 'disputes', d.id), d, { merge: true });
+      await setDoc(doc(db, 'disputes', d.id), stripUndefined(d), { merge: true });
   };
 
   const handleAddReview = async (r: Review) => {
-      await setDoc(doc(db, 'reviews', r.id), r);
+      await setDoc(doc(db, 'reviews', r.id), stripUndefined(r));
   };
 
   const handleAddRecommendation = async (r: SellerRecommendation) => {
-      await setDoc(doc(db, 'recommendations', r.id), r);
+      await setDoc(doc(db, 'recommendations', r.id), stripUndefined(r));
   };
 
   const handleUpdateConfig = async (newConfig: SiteConfig) => {
-      await setDoc(doc(db, 'settings', 'config'), newConfig);
+      await setDoc(doc(db, 'settings', 'config'), stripUndefined(newConfig));
   };
 
   const handleAddCategory = async (cat: string) => {
@@ -279,24 +282,14 @@ function App() {
       }));
       // Persist
       const currentMsgs = messages[channelId] || [];
-      await setDoc(doc(db, 'channels', channelId), { messages: [...currentMsgs, msg] }, { merge: true });
+      await setDoc(doc(db, 'channels', channelId), { messages: [...currentMsgs, stripUndefined(msg)] }, { merge: true });
   };
 
   const handleCompletePurchase = async (newTxs: Transaction[]) => {
       const batch = writeBatch(db);
       newTxs.forEach(tx => {
           const ref = doc(db, 'transactions', tx.id);
-          batch.set(ref, { ...tx, buyerId: currentUser?.id, status: 'pending' });
-          
-          // Deduct stock
-          const prodRef = doc(db, 'products', tx.productId);
-          const product = products.find(p => p.id === tx.productId);
-          if (product) {
-             const qty = Math.round(tx.amount / product.price); // Approximate qty back-calc or pass in tx
-             // Ideally we pass items with quantity to this function but for now we rely on cart
-             // For precision, let's just create the transactions. Stock deduction should be strictly server-side or carefully managed.
-             // We'll skip complex stock deduction here to avoid race conditions without transactions.
-          }
+          batch.set(ref, stripUndefined({ ...tx, buyerId: currentUser?.id, status: 'pending' }));
       });
       await batch.commit();
       setCart([]);
@@ -325,14 +318,14 @@ function App() {
     if ((isSiteUnlocked || !siteConfig.siteLocked) && Math.random() > 0.7) {
         const id = `vis-${Date.now()}`;
         // Fire and forget
-        setDoc(doc(db, 'visitor_logs', id), {
+        setDoc(doc(db, 'visitor_logs', id), stripUndefined({
             id,
             ip: '127.0.0.1', // Client IP detection requires backend
             location: 'Unknown',
             timestamp: Date.now(),
             device: navigator.platform,
             page: currentView
-        }).catch(e => console.log('Log error', e));
+        })).catch(e => console.log('Log error', e));
     }
   }, [currentView, isSiteUnlocked, siteConfig.siteLocked]);
 
@@ -446,8 +439,8 @@ function App() {
         } : undefined
       };
       
-      // Register in Firestore
-      await setDoc(doc(db, 'users', newUser.id), newUser);
+      // Register in Firestore (SANITIZE DATA FIRST)
+      await setDoc(doc(db, 'users', newUser.id), stripUndefined(newUser));
       setCurrentUser(newUser);
 
       if (role === UserRole.SELLER && storeName) {
@@ -459,7 +452,7 @@ function App() {
           bannerUrl: 'https://picsum.photos/1200/400',
           status: 'active'
         };
-        await setDoc(doc(db, 'stores', newStore.id), newStore);
+        await setDoc(doc(db, 'stores', newStore.id), stripUndefined(newStore));
       }
       
       handleNavigate(role === UserRole.ADMIN ? 'admin-dashboard' : role === UserRole.SELLER ? 'seller-dashboard' : 'home');
@@ -667,7 +660,7 @@ function App() {
                 onDeleteProduct={handleDeleteProduct}
                 onUpdateUser={handleUpdateUser}
                 onBatchAddProducts={handleBatchAddProducts}
-                onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), p)}
+                onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), stripUndefined(p))}
                 onUpdateTransaction={handleUpdateTransaction}
                 onAddCategory={handleAddCategory}
              />
@@ -691,8 +684,8 @@ function App() {
                  onUpdateUser={handleUpdateUser}
                  onUpdateDispute={handleUpdateDispute}
                  onAddCategory={handleAddCategory}
-                 onCreateStaff={(staff) => setDoc(doc(db, 'users', staff.id), staff)}
-                 onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), p)}
+                 onCreateStaff={(staff) => setDoc(doc(db, 'users', staff.id), stripUndefined(staff))}
+                 onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), stripUndefined(p))}
                  onSendNotification={(id, msg) => { const u = users.find(x => x.id === id); if(u) handleUpdateUser({ ...u, notifications: [msg, ...(u.notifications || [])] }); }}
               />
            ) : (
@@ -712,7 +705,7 @@ function App() {
                  disputes={disputes}
                  reviews={reviews}
                  recommendations={sellerRecommendations}
-                 onRaiseDispute={(d) => setDoc(doc(db, 'disputes', d.id), d)}
+                 onRaiseDispute={(d) => setDoc(doc(db, 'disputes', d.id), stripUndefined(d))}
                  onAddReview={handleAddReview}
                  onUpdateUser={handleUpdateUser}
                  onAddRecommendation={handleAddRecommendation}
@@ -751,7 +744,7 @@ function App() {
 
 // Helper for Flagging (needed inside component scope but defined here for cleaner JSX)
 const handleUpdateProduct = async (p: Product) => {
-    await setDoc(doc(db, 'products', p.id), p);
+    await setDoc(doc(db, 'products', p.id), stripUndefined(p));
 }
 
 export default App;
