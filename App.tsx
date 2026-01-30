@@ -112,6 +112,7 @@ function App() {
   const [sellerRecommendations, setSellerRecommendations] = useState<SellerRecommendation[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(INITIAL_CONFIG);
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
   const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
   
@@ -177,6 +178,7 @@ function App() {
         } else {
             setDoc(doc(db, 'settings', 'config'), stripUndefined(INITIAL_CONFIG));
         }
+        setIsConfigLoaded(true);
     });
 
     // 9. Categories
@@ -243,6 +245,14 @@ function App() {
     }
   };
 
+  const handleUpdateProduct = async (product: Product) => {
+    try {
+        await setDoc(doc(db, 'products', product.id), stripUndefined(product), { merge: true });
+    } catch (e) {
+        console.error("Error updating product:", e);
+    }
+  };
+
   const handleBatchAddProducts = async (products: Product[]) => {
       const batch = writeBatch(db);
       products.forEach(p => {
@@ -278,14 +288,38 @@ function App() {
   };
 
   const handleSendMessage = async (channelId: string, msg: Message) => {
-      // Optimistic update locally
-      setMessages(prev => ({
-          ...prev,
-          [channelId]: [...(prev[channelId] || []), msg]
-      }));
-      // Persist
+      // NOTE: We rely on Firestore's latency compensation (onSnapshot) to update the UI immediately for local writes.
+      // Manually setting state here can cause flicker/race conditions if the snapshot fires with old data before server sync.
       const currentMsgs = messages[channelId] || [];
-      await setDoc(doc(db, 'channels', channelId), { messages: [...currentMsgs, stripUndefined(msg)] }, { merge: true });
+      try {
+        await setDoc(doc(db, 'channels', channelId), { messages: [...currentMsgs, stripUndefined(msg)] }, { merge: true });
+      } catch (e) {
+        console.error("Failed to send message", e);
+      }
+  };
+
+  const handleClearChat = async (channelId: string) => {
+      // Deletes the chat document entirely
+      await deleteDoc(doc(db, 'channels', channelId));
+      // Local clean up is handled by snapshot listener
+  };
+
+  const handleArchiveChat = async (channelId: string) => {
+      // Clears messages but keeps channel
+      await updateDoc(doc(db, 'channels', channelId), { messages: [] });
+  };
+
+  const handleNotifySeller = (storeId: string, msg: string) => {
+      const store = stores.find(s => s.id === storeId);
+      if (store) {
+          const seller = users.find(u => u.id === store.sellerId);
+          if (seller) {
+              handleUpdateUser({
+                  ...seller,
+                  notifications: [msg, ...(seller.notifications || [])]
+              });
+          }
+      }
   };
 
   const handleCompletePurchase = async (newTxs: Transaction[]) => {
@@ -485,6 +519,14 @@ function App() {
 
   // --- RENDER ---
 
+  if (!isConfigLoaded) {
+    return (
+        <div className={`min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 ${theme}`}>
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
+  }
+
   if (!isSiteUnlocked && siteConfig.siteLocked) {
     return (
       <div className={`min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 ${theme}`}>
@@ -577,7 +619,8 @@ function App() {
             onAddToCart={handleAddToCart}
             onBecomeSeller={() => { setCurrentUser(null); handleNavigate('auth'); }}
             onFlagProduct={(pid) => {
-               handleUpdateProduct({ ...products.find(p => p.id === pid)!, isFlagged: true, flags: (products.find(p => p.id === pid)?.flags || 0) + 1 });
+               const p = products.find(prod => prod.id === pid);
+               if (p) handleUpdateProduct({ ...p, isFlagged: true, flags: (p.flags || 0) + 1 });
             }}
           />
         )}
@@ -647,107 +690,112 @@ function App() {
            />
         )}
 
+        {currentView === 'seller-dashboard' && currentUser?.role === UserRole.SELLER && (
+          <SellerDashboard 
+            user={freshCurrentUser!}
+            products={products}
+            adminConfig={siteConfig}
+            disputes={disputes}
+            transactions={transactions}
+            categories={categories}
+            reviews={reviews}
+            recommendations={sellerRecommendations}
+            onAddProduct={handleAddProduct}
+            onDeleteProduct={handleDeleteProduct}
+            onUpdateUser={handleUpdateUser}
+            onBatchAddProducts={handleBatchAddProducts}
+            onUpdateProduct={handleUpdateProduct}
+            onUpdateTransaction={handleUpdateTransaction}
+            onAddCategory={handleAddCategory}
+          />
+        )}
+
+        {currentView === 'admin-dashboard' && currentUser?.role === UserRole.ADMIN && (
+          <AdminDashboard 
+            vendors={users}
+            stores={stores}
+            products={products}
+            transactions={transactions}
+            siteConfig={siteConfig}
+            allMessages={messages}
+            disputes={disputes}
+            categories={categories}
+            currentUser={freshCurrentUser!}
+            visitorLogs={visitorLogs}
+            sellerRecommendations={sellerRecommendations}
+            onUpdateConfig={handleUpdateConfig}
+            onToggleVendorStatus={(id) => {
+              const u = users.find(user => user.id === id);
+              if (u) handleUpdateUser({ ...u, isSuspended: !u.isSuspended });
+            }}
+            onDeleteVendor={async (id) => {
+               await deleteDoc(doc(db, 'users', id));
+               // Also cascade delete products? For safety, maybe not in this demo
+            }}
+            onUpdateUser={handleUpdateUser}
+            onUpdateDispute={handleUpdateDispute}
+            onAddCategory={handleAddCategory}
+            onCreateStaff={async (staff) => {
+               await setDoc(doc(db, 'users', staff.id), stripUndefined(staff));
+            }}
+            onUpdateProduct={handleUpdateProduct}
+            onSendNotification={(uid, msg) => {
+               const u = users.find(user => user.id === uid);
+               if(u) handleUpdateUser({ ...u, notifications: [msg, ...(u.notifications || [])] });
+            }}
+          />
+        )}
+
+        {currentView === 'buyer-dashboard' && currentUser?.role === UserRole.BUYER && (
+          <BuyerDashboard 
+            user={freshCurrentUser!}
+            transactions={transactions.filter(t => t.buyerId === currentUser.id)}
+            disputes={disputes}
+            reviews={reviews}
+            recommendations={sellerRecommendations}
+            onRaiseDispute={async (d) => {
+               await setDoc(doc(db, 'disputes', d.id), stripUndefined(d));
+            }}
+            onAddReview={handleAddReview}
+            onUpdateUser={handleUpdateUser}
+            onAddRecommendation={handleAddRecommendation}
+          />
+        )}
+
+        {currentView === 'staff-dashboard' && [UserRole.STAFF, UserRole.MARKETER, UserRole.TECHNICAL, UserRole.TEAM_MEMBER].includes(currentUser?.role as any) && (
+           <StaffDashboard 
+             user={freshCurrentUser!}
+             transactions={transactions}
+             vendors={users}
+             disputes={disputes}
+             onUpdateUser={handleUpdateUser}
+           />
+        )}
+
         {['privacy', 'terms', 'sourcing', 'cookies'].includes(currentView) && (
            <LegalView view={currentView as any} config={siteConfig} />
         )}
 
         {currentView === 'about' && <AboutUsView config={siteConfig} />}
+        
         {currentView === 'services' && <ServicesView config={siteConfig} />}
 
-        {currentView === 'seller-dashboard' && (
-          freshCurrentUser ? (
-             <SellerDashboard 
-                user={freshCurrentUser} products={products} adminConfig={siteConfig} disputes={disputes} categories={categories}
-                transactions={transactions} reviews={reviews} recommendations={sellerRecommendations}
-                onAddProduct={handleAddProduct}
-                onDeleteProduct={handleDeleteProduct}
-                onUpdateUser={handleUpdateUser}
-                onBatchAddProducts={handleBatchAddProducts}
-                onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), stripUndefined(p))}
-                onUpdateTransaction={handleUpdateTransaction}
-                onAddCategory={handleAddCategory}
-             />
-          ) : (
-             <div className="py-32 text-center">
-                 <h2 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h2>
-                 <p className="text-gray-500 mb-4">You must be logged in to access the Seller Dashboard.</p>
-                 <button onClick={() => handleNavigate('auth')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs">Login</button>
-             </div>
-          )
-        )}
-
-        {currentView === 'admin-dashboard' && (
-           freshCurrentUser?.role === UserRole.ADMIN ? (
-              <AdminDashboard 
-                 vendors={users} stores={stores} products={products} transactions={transactions} categories={categories}
-                 siteConfig={siteConfig} allMessages={messages} disputes={disputes} currentUser={freshCurrentUser} visitorLogs={visitorLogs} sellerRecommendations={sellerRecommendations}
-                 onUpdateConfig={handleUpdateConfig}
-                 onToggleVendorStatus={(id) => { const u = users.find(x => x.id === id); if(u) handleUpdateUser({ ...u, isSuspended: !u.isSuspended }); }}
-                 onDeleteVendor={(id) => { deleteDoc(doc(db, 'users', id)); }}
-                 onUpdateUser={handleUpdateUser}
-                 onUpdateDispute={handleUpdateDispute}
-                 onAddCategory={handleAddCategory}
-                 onCreateStaff={(staff) => setDoc(doc(db, 'users', staff.id), stripUndefined(staff))}
-                 onUpdateProduct={(p) => setDoc(doc(db, 'products', p.id), stripUndefined(p))}
-                 onSendNotification={(id, msg) => { const u = users.find(x => x.id === id); if(u) handleUpdateUser({ ...u, notifications: [msg, ...(u.notifications || [])] }); }}
-              />
-           ) : (
-              <div className="py-32 text-center">
-                 <h2 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h2>
-                 <p className="text-gray-500 mb-4">Authorized Personnel Only.</p>
-                 <button onClick={() => handleNavigate('auth')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs">Login</button>
-              </div>
-           )
-        )}
-
-        {currentView === 'buyer-dashboard' && (
-           freshCurrentUser?.role === UserRole.BUYER ? (
-              <BuyerDashboard 
-                 user={freshCurrentUser}
-                 transactions={transactions.filter(t => t.buyerId === freshCurrentUser.id)}
-                 disputes={disputes}
-                 reviews={reviews}
-                 recommendations={sellerRecommendations}
-                 onRaiseDispute={(d) => setDoc(doc(db, 'disputes', d.id), stripUndefined(d))}
-                 onAddReview={handleAddReview}
-                 onUpdateUser={handleUpdateUser}
-                 onAddRecommendation={handleAddRecommendation}
-              />
-           ) : (
-               <div className="py-32 text-center">
-                 <h2 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h2>
-                 <p className="text-gray-500 mb-4">Please login to view your buyer portal.</p>
-                 <button onClick={() => handleNavigate('auth')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs">Login</button>
-              </div>
-           )
-        )}
-
-        {currentView === 'staff-dashboard' && freshCurrentUser && (
-           <StaffDashboard 
-              user={freshCurrentUser}
-              transactions={transactions}
-              vendors={users}
-              disputes={disputes}
-              onUpdateUser={handleUpdateUser}
-           />
-        )}
       </Layout>
 
       <ChatSupport 
         currentUser={freshCurrentUser}
         stores={stores}
+        products={products}
         globalMessages={messages}
         onSendMessage={handleSendMessage}
+        onClearChat={handleClearChat}
+        onArchiveChat={handleArchiveChat}
+        onNotifySeller={handleNotifySeller}
         theme={theme}
         config={siteConfig}
       />
     </div>
   );
-}
-
-// Helper for Flagging (needed inside component scope but defined here for cleaner JSX)
-const handleUpdateProduct = async (p: Product) => {
-    await setDoc(doc(db, 'products', p.id), stripUndefined(p));
 }
 
 export default App;

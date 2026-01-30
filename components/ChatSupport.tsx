@@ -1,15 +1,18 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { User, Message, UserRole, Store, SiteConfig } from '../types';
+import { User, Message, UserRole, Store, SiteConfig, Product } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { Icons } from '../constants';
 
 interface ChatSupportProps {
   currentUser: User | null;
   stores?: Store[];
+  products?: Product[];
   globalMessages?: Record<string, Message[]>;
   onSendMessage?: (channelId: string, message: Message) => void;
   onClearChat?: (channelId: string) => void;
+  onArchiveChat?: (channelId: string) => void;
+  onNotifySeller?: (storeId: string, message: string) => void;
   theme: 'light' | 'dark';
   isEmbedded?: boolean;
   forcedChannelId?: string;
@@ -18,12 +21,15 @@ interface ChatSupportProps {
   config?: SiteConfig;
 }
 
-export const ChatSupport: React.FC<ChatSupportProps> = ({ 
+const ChatSupportBase: React.FC<ChatSupportProps> = ({ 
   currentUser, 
   stores = [], 
+  products = [],
   globalMessages = {}, 
   onSendMessage, 
   onClearChat,
+  onArchiveChat,
+  onNotifySeller,
   theme, 
   isEmbedded = false,
   forcedChannelId,
@@ -40,16 +46,22 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastActivityRef = useRef<number>(Date.now());
-
-  const [guestId] = useState(() => `guest-${Math.random().toString(36).substr(2, 9)}`);
   
-  const activeUser: User = currentUser || {
+  // Persist guest ID so it doesn't change on re-renders/refresh
+  const [guestId] = useState(() => {
+    const stored = localStorage.getItem('omni_guest_id');
+    if(stored) return stored;
+    const newId = `guest-${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('omni_guest_id', newId);
+    return newId;
+  });
+  
+  const activeUser: User = useMemo(() => currentUser || {
     id: guestId,
     name: 'Guest User',
     role: UserRole.BUYER,
     email: 'guest@omni.link'
-  };
+  }, [currentUser, guestId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -57,15 +69,34 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
     }
   }, [globalMessages, selectedChannel, isThinking, attachment]);
 
-  const updateActivity = () => {
-    lastActivityRef.current = Date.now();
+  const getChannelInfo = (channelId: string) => {
+    if (channelId === 'system') return { name: 'Omni Global Support', storeId: null };
+    const [storeId, userId] = channelId.split('_');
+    const store = stores.find(s => s.id === storeId);
+    
+    if (activeUser.role === UserRole.SELLER) {
+       return { name: `Customer (${userId?.slice(-4) || 'Unk'})`, storeId: storeId };
+    }
+    
+    return { name: store ? store.name : 'Unknown Channel', storeId: storeId };
   };
 
-  const activeChannelName = selectedChannel === 'system' 
-    ? 'Omni Global Support' 
-    : stores.find(s => s.id === selectedChannel)?.name || 'Direct Inquiry';
-
+  const currentChannelInfo = selectedChannel ? getChannelInfo(selectedChannel) : null;
   const messages = selectedChannel ? (globalMessages[selectedChannel] || []) : [];
+
+  const availableChannels = useMemo(() => {
+    if (activeUser.role === UserRole.ADMIN) {
+        return Object.keys(globalMessages).filter(k => k !== 'system');
+    }
+    if (activeUser.role === UserRole.SELLER) {
+        const myStoreIds = stores.filter(s => s.sellerId === activeUser.id).map(s => s.id);
+        return Object.keys(globalMessages).filter(k => {
+            const [sId] = k.split('_');
+            return myStoreIds.includes(sId);
+        });
+    }
+    return []; 
+  }, [activeUser, globalMessages, stores]);
 
   const filteredStores = useMemo(() => {
     return stores.filter(s => s.name.toLowerCase().includes(channelSearchQuery.toLowerCase()));
@@ -87,72 +118,83 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
   };
 
   const handleAIService = async (userMessage: string, userAttachment: string | null, channelId: string) => {
-    // Prioritize global config key (User entered), fall back to Env var
     const effectiveKey = config?.geminiApiKey || process.env.API_KEY;
     
-    if (!effectiveKey) {
-      onSendMessage?.(channelId, {
-        id: `ai-err-${Date.now()}`,
-        senderId: 'ai-agent',
-        senderName: 'System',
-        text: "System Alert: AI Agent offline. API Key configuration missing in Admin Settings.",
-        timestamp: Date.now()
-      });
-      return;
-    }
+    if (!effectiveKey) return;
 
     setIsThinking(true);
     try {
       const ai = new GoogleGenAI({ apiKey: effectiveKey });
-      const isSystemSupport = channelId === 'system';
+      const { storeId, name } = getChannelInfo(channelId);
       
-      const systemPrompt = isSystemSupport 
-        ? `You are the Omni Global Support AI. Support User: ${activeUser.name}. Role: ${activeUser.role}. You can see images the user uploads. Analyze them if provided.`
-        : `You are the Sales Agent for "${activeChannelName}". Help the visitor: ${activeUser.name}. If they upload an image of a product, analyze it, describe it, and suggest if we might have something similar.`;
+      let contextString = "";
+      if (storeId) {
+          const storeProds = products.filter(p => p.sellerId === stores.find(s => s.id === storeId)?.sellerId);
+          const store = stores.find(s => s.id === storeId);
+          contextString = `
+            You are the specialized support AI for "${store?.name}".
+            Store Description: ${store?.description}.
+            
+            PRODUCT CATALOG (Use these exact links):
+            ${storeProds.map(p => `- ${p.name} (${p.price} ${p.currencySymbol || '₦'}) - [Link to ${p.name}](#/store/${encodeURIComponent(p.storeName)})`).join('\n')}
+          `;
+      } else {
+          contextString = `
+            You are the Omni Global System Support Agent acting as a unified seller representative.
+            You have access to all products across the marketplace.
+            
+            FULL MARKETPLACE CATALOG SAMPLES (Use these exact links):
+            ${products.slice(0, 20).map(p => `- ${p.name} by ${p.storeName} (${p.price} ${p.currencySymbol || '₦'}) - [Link to Store](#/store/${encodeURIComponent(p.storeName)})`).join('\n')}
+          `;
+      }
 
-      // Construct content parts
+      const systemPrompt = `
+        ${contextString}
+        User Role: ${activeUser.role}.
+        User Name: ${activeUser.name}.
+        
+        INSTRUCTIONS:
+        1. Act as the SELLER/MERCHANT. Be helpful, sales-oriented, and polite.
+        2. If the user asks for a product, recommend it from the catalog above.
+        3. CRITICAL: When recommending a product, YOU MUST PROVIDE THE LINK provided in the catalog using markdown format [Link Text](URL).
+        4. Give clear steps on how to buy (e.g., "Click the link, select size, add to cart").
+        5. If the user asks for a human, seller, or admin, reply exactly: "I have notified the human agent. They will connect shortly."
+        6. Do not hallucinate products not in the provided list.
+        7. Keep responses concise (under 3 sentences unless detailing steps).
+      `;
+
       const parts: any[] = [{ text: userMessage }];
-      
       if (userAttachment) {
-        // userAttachment is data:image/png;base64,....
         const base64Data = userAttachment.split(',')[1];
         const mimeType = userAttachment.split(';')[0].split(':')[1];
-        
         parts.push({
-          inlineData: {
-            mimeType: mimeType,
-            data: base64Data
-          }
+          inlineData: { mimeType, data: base64Data }
         });
       }
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: { parts: parts },
-        config: { systemInstruction: systemPrompt, temperature: 0.7 }
+        config: { systemInstruction: systemPrompt, temperature: 0.4, maxOutputTokens: 250 }
       });
 
-      const aiResponseText = response.text || "Synchronizing...";
+      const aiResponseText = response.text || "I've noted that.";
+      
+      // Notify seller if AI signals handoff
+      if (aiResponseText.includes("I have notified the human agent") && storeId && onNotifySeller) {
+          onNotifySeller(storeId, `URGENT: Customer ${activeUser.name} requested human support in ${name}.`);
+      }
       
       onSendMessage?.(channelId, {
         id: `ai-${Date.now()}`,
         senderId: 'ai-agent',
-        senderName: `${activeChannelName} (AI)`,
+        senderName: `${name} (AI)`,
         text: aiResponseText,
         timestamp: Date.now()
       });
 
-      updateActivity();
     } catch (error: any) {
       console.error(error);
-      const errorMsg = error.message || error.toString();
-      onSendMessage?.(channelId, {
-        id: `ai-err-${Date.now()}`,
-        senderId: 'ai-agent',
-        senderName: 'System',
-        text: `Agent Error: ${errorMsg}. Check Admin Settings Key validity.`,
-        timestamp: Date.now()
-      });
     } finally {
       setIsThinking(false);
     }
@@ -160,26 +202,30 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const text = input.trim();
-    const currentAttachment = attachment;
+    if ((!input.trim() && !attachment) || !selectedChannel || !onSendMessage) return;
 
-    if ((!text && !currentAttachment) || !selectedChannel || !onSendMessage) return;
-
-    onSendMessage(selectedChannel, {
+    const messagePayload = {
       id: `msg-${Date.now()}`,
       senderId: activeUser.id,
       senderName: activeUser.name,
-      text: text,
-      attachment: currentAttachment || undefined,
+      text: input.trim(),
+      attachment: attachment || undefined,
       timestamp: Date.now()
-    });
+    };
+
+    onSendMessage(selectedChannel, messagePayload);
+    
+    // Clear input AFTER sending signal
+    const textToSend = input.trim();
+    const attachmentToSend = attachment;
     
     setInput('');
     setAttachment(null);
-    updateActivity();
     
     // Trigger AI response
-    handleAIService(text || (currentAttachment ? "Analyze this image." : ""), currentAttachment, selectedChannel);
+    if (activeUser.role === UserRole.BUYER || activeUser.role === UserRole.ADMIN) {
+       handleAIService(textToSend || (attachmentToSend ? "Analyze this image." : ""), attachmentToSend, selectedChannel);
+    }
   };
 
   if (!isOpen && !isEmbedded) {
@@ -199,6 +245,7 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
       ${isEmbedded ? 'w-full h-full' : 'fixed inset-0 h-[100dvh] sm:h-[600px] sm:inset-auto sm:bottom-28 sm:right-6 sm:w-96 z-[500]'} 
       bg-white dark:bg-slate-900 flex flex-col sm:rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up font-sans border-0 sm:border dark:border-slate-800
     `}>
+      {/* Header */}
       <div className="p-4 sm:p-5 bg-indigo-600 text-white flex justify-between items-center shrink-0 shadow-lg relative z-10">
         <div className="flex items-center gap-3">
           {selectedChannel && (
@@ -207,7 +254,9 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
             </button>
           )}
           <div>
-            <h3 className="font-black text-sm sm:text-base uppercase tracking-tight leading-none truncate max-w-[200px]">{selectedChannel ? activeChannelName : 'Support Hub'}</h3>
+            <h3 className="font-black text-sm sm:text-base uppercase tracking-tight leading-none truncate max-w-[200px]">
+                {currentChannelInfo ? currentChannelInfo.name : (activeUser.role === UserRole.BUYER ? 'Support Hub' : 'Incoming Chats')}
+            </h3>
             <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-indigo-200 mt-1 flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
               Live Network
@@ -223,52 +272,100 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
 
       {!selectedChannel ? (
         <div className="flex-1 flex flex-col bg-gray-50 dark:bg-slate-950 overflow-y-auto p-4 space-y-4 no-scrollbar">
-           <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 sticky top-0 z-10">
-             <div className="flex items-center gap-3 text-gray-400">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-               <input 
-                 type="text"
-                 value={channelSearchQuery}
-                 onChange={(e) => setChannelSearchQuery(e.target.value)}
-                 placeholder="Search nodes..."
-                 className="w-full bg-transparent text-sm font-bold outline-none dark:text-white placeholder:text-gray-400"
-               />
-             </div>
-           </div>
-           
-           <button 
-              onClick={() => setSelectedChannel('system')}
-              className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-[2rem] border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm group"
-            >
-              <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              </div>
-              <div>
-                <p className="font-black text-sm uppercase dark:text-white">Global Support</p>
-                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Network Admin AI</p>
-              </div>
-            </button>
-
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 pl-2">Marketplace Nodes</h4>
-              {filteredStores.length === 0 ? (
-                <div className="text-center py-10 text-gray-300 font-bold text-xs uppercase">No active nodes found</div>
-              ) : (
-                filteredStores.map(store => (
-                  <button 
-                    key={store.id}
-                    onClick={() => setSelectedChannel(store.id)}
-                    className="w-full flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm"
-                  >
-                    <img src={store.bannerUrl} className="w-12 h-12 rounded-xl object-cover" alt="" />
-                    <div className="min-w-0">
-                      <p className="font-black text-xs uppercase truncate dark:text-white">{store.name}</p>
-                      <p className="text-[8px] text-indigo-500 font-bold uppercase tracking-widest">Verified Vendor</p>
+           {activeUser.role === UserRole.BUYER && (
+               <>
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 sticky top-0 z-10">
+                    <div className="flex items-center gap-3 text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <input 
+                        type="text"
+                        value={channelSearchQuery}
+                        onChange={(e) => setChannelSearchQuery(e.target.value)}
+                        placeholder="Search nodes..."
+                        className="w-full bg-transparent text-sm font-bold outline-none dark:text-white placeholder:text-gray-400"
+                    />
                     </div>
-                  </button>
-                ))
-              )}
-            </div>
+                </div>
+                
+                <button 
+                    onClick={() => setSelectedChannel('system')}
+                    className="w-full flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-[2rem] border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm group"
+                    >
+                    <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <div>
+                        <p className="font-black text-sm uppercase dark:text-white">Global Support</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Network Admin AI</p>
+                    </div>
+                </button>
+
+                <div className="space-y-3">
+                    <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 pl-2">Marketplace Nodes</h4>
+                    {filteredStores.length === 0 ? (
+                        <div className="text-center py-10 text-gray-300 font-bold text-xs uppercase">No active nodes found</div>
+                    ) : (
+                        filteredStores.map(store => (
+                        <button 
+                            key={store.id}
+                            onClick={() => setSelectedChannel(`${store.id}_${activeUser.id}`)}
+                            className="w-full flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm"
+                        >
+                            <img src={store.bannerUrl} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                            <div className="min-w-0">
+                            <p className="font-black text-xs uppercase truncate dark:text-white">{store.name}</p>
+                            <p className="text-[8px] text-indigo-500 font-bold uppercase tracking-widest">Connect</p>
+                            </div>
+                        </button>
+                        ))
+                    )}
+                </div>
+               </>
+           )}
+
+           {(activeUser.role === UserRole.SELLER || activeUser.role === UserRole.ADMIN) && (
+               <div className="space-y-3">
+                   {availableChannels.length === 0 ? (
+                       <div className="text-center py-20 text-gray-400 font-bold text-xs uppercase tracking-widest">No active transmissions</div>
+                   ) : (
+                       availableChannels.map(cid => {
+                           const info = getChannelInfo(cid);
+                           return (
+                               <button 
+                                   key={cid}
+                                   onClick={() => setSelectedChannel(cid)}
+                                   className="w-full flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-indigo-600 transition-all text-left shadow-sm relative group"
+                               >
+                                   <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-xl flex items-center justify-center font-black text-indigo-600">
+                                       {info.name[0]}
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                       <p className="font-black text-xs uppercase truncate dark:text-white">{info.name}</p>
+                                       <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest truncate">{globalMessages[cid]?.slice(-1)[0]?.text || 'No messages'}</p>
+                                   </div>
+                                   {activeUser.role === UserRole.ADMIN && (
+                                       <div 
+                                         onClick={(e) => { e.stopPropagation(); if(confirm('Clear this chat permanently?')) onClearChat?.(cid); }}
+                                         className="absolute right-4 bg-red-100 text-red-600 p-2 rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-red-200"
+                                       >
+                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                       </div>
+                                   )}
+                                   {activeUser.role === UserRole.SELLER && (
+                                       <div 
+                                         onClick={(e) => { e.stopPropagation(); onArchiveChat?.(cid); }}
+                                         className="absolute right-4 bg-gray-100 text-gray-600 p-2 rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-gray-200"
+                                         title="Archive Chat"
+                                       >
+                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                                       </div>
+                                   )}
+                               </button>
+                           );
+                       })
+                   )}
+               </div>
+           )}
         </div>
       ) : (
         <>
@@ -299,7 +396,17 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
                         : 'bg-white dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-tl-none shadow-sm'
                     }
                   `}>
-                    {msg.text}
+                    {msg.text.split(/(\[.*?\]\(.*?\))/g).map((part, i) => {
+                        const match = part.match(/\[(.*?)\]\((.*?)\)/);
+                        if (match) {
+                            return (
+                                <a key={i} href={match[2]} className="text-indigo-300 hover:text-white underline font-bold" target="_blank" rel="noopener noreferrer">
+                                    {match[1]}
+                                </a>
+                            );
+                        }
+                        return part;
+                    })}
                   </div>
                 )}
               </div>
@@ -323,38 +430,49 @@ export const ChatSupport: React.FC<ChatSupportProps> = ({
             </div>
           )}
 
-          <form onSubmit={handleFormSubmit} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex gap-2 shrink-0 pb-6 sm:pb-4 items-center">
-            <input 
-              type="file" 
-              accept="image/*" 
-              ref={fileInputRef} 
-              className="hidden" 
-              onChange={handleFileSelect} 
-            />
-            <button 
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-3 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-            >
-              <Icons.Camera />
-            </button>
-            <input 
-              type="text" 
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your inquiry..."
-              className="flex-1 bg-gray-100 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-3 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all font-medium"
-            />
-            <button 
-              type="submit" 
-              disabled={!input.trim() && !attachment}
-              className="bg-indigo-600 text-white p-3 sm:p-4 rounded-xl disabled:opacity-50 active:scale-90 transition shadow-lg"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
-          </form>
+          <div className="bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex flex-col">
+             {activeUser.role === UserRole.ADMIN && (
+                 <button onClick={() => { if(confirm('Clear history?')) onClearChat?.(selectedChannel!); }} className="w-full py-1 text-[8px] font-black uppercase text-red-500 hover:bg-red-50 bg-red-50/20">Admin: Clear Chat</button>
+             )}
+             {activeUser.role === UserRole.SELLER && (
+                 <button onClick={() => onArchiveChat?.(selectedChannel!)} className="w-full py-1 text-[8px] font-black uppercase text-gray-500 hover:bg-gray-50">Archive Chat</button>
+             )}
+             <form onSubmit={handleFormSubmit} className="p-3 sm:p-4 flex gap-2 shrink-0 pb-6 sm:pb-4 items-center">
+                <input 
+                type="file" 
+                accept="image/*" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileSelect} 
+                />
+                <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-3 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                >
+                <Icons.Camera />
+                </button>
+                <input 
+                type="text" 
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your inquiry..."
+                className="flex-1 bg-gray-100 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-3 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all font-medium"
+                />
+                <button 
+                type="submit" 
+                disabled={!input.trim() && !attachment}
+                className="bg-indigo-600 text-white p-3 sm:p-4 rounded-xl disabled:opacity-50 active:scale-90 transition shadow-lg"
+                >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </form>
+          </div>
         </>
       )}
     </div>
   );
 };
+
+// Export as memoized component to prevent re-renders from parent (App.tsx timer) clearing input state
+export const ChatSupport = React.memo(ChatSupportBase);
